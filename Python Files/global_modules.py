@@ -27,66 +27,36 @@ class objdict(dict):
         else:
             raise AttributeError("No such attribute: " + name)
 
-# class ProgramCredentials:
-#     def __init__(self, environment):
-#         filename = __file__
-#         filename = filename.replace('/', "\\")
-#         folder_name = '\\'.join(filename.split('\\')[:-2])
-#         if environment == 'development':
-#             file_name = f'{folder_name}\\credentials_development.json'
-#         elif environment == 'production_kyf':
-#             file_name = f'{folder_name}\\credentials_production_kyf.json'
-#         elif environment == 'production_fc':
-#             file_name = f'{folder_name}\\credentials_production_fc.json'
-#         elif environment == 'production_gn':
-#             file_name = f'{folder_name}\\credentials_production_gn.json'
-#
-#         f = json.load(open(file_name))
-#
-#         self.project_folder = folder_name
-#         self.qb_hostname = f['qb_hostname']
-#         self.qb_auth = f['qb_auth']
-#         self.qb_app_id = f['qb_app_id']
-#         self.qb_app_token = f['qb_app_token']
-#         self.qb_user_token = f['qb_user_token']
-#         self.deal_table_id = f['deal_table_id']
-#         self.payment_table_id = f['payment_table_id']
-#         self.customer_table_id = f['customer_table_id']
-#         self.submissions_table_id = f['submissions_table_id']
-#         self.payback_batch_table_id = f['payback_batch_table_id']
-#         self.subsmission_log_table_id = f['subsmission_log_table_id']
-#         self.username = f['username']
-#         self.password = f['password']
-#         self.achworks_username = f['achworks_username']
-#         self.achworks_password = f['achworks_password']
-#         self.achworks_loc_id = f['achworks_loc_id']
-#         self.achworks_sss = f['achworks_sss']
-#         self.achworks_wsdl = f['achworks_wsdl']
-#
-#         self.admin_name = f['admin_name']
-#         self.app_name  = f['app_name']
-#         self.outbound_email = f['outbound_email']
-#         self.inbound_email = f['inbound_email']
-#
-#         self.change_payments = self.set_attributes(f['change_payments'])
-#         self.add_broken_deal = self.set_attributes(f['add_broken_deal'])
-#         self.add_deal_payments =  self.set_attributes(f['add_deal_payments'])
-#
-#         self.add_all_deal_payments = self.set_attributes(f['add_all_deal_payments'])
-#         self.get_payment_data =self.set_attributes(f['get_payment_data'])
-#
-#         self.send_ach_payments = self.set_attributes(f['send_ach_payments'])
-#         self.get_ach_status_data = self.set_attributes(f['get_ach_status_data'])
-#
-#
-#     def set_attributes(self, params):
-#
-#         params = objdict(params)
-#         for key, val in params.items():
-#             params[key] = objdict(val)
-#
-#         return params
-#
+class ProgramCredentials:
+    def __init__(self, environment):
+        filename = __file__
+        filename = filename.replace('/', "\\")
+        folder_name = '\\'.join(filename.split('\\')[:-2])
+        if environment == 'development':
+            file_name = f'{folder_name}\\credentials_development.json'
+        elif environment == 'production':
+            file_name = f'{folder_name}\\credentials_production.json'
+
+        f = json.load(open(file_name))
+
+        self.project_folder = folder_name
+        self.drive_credentials_file = f['drive_credentials_file'].replace("%USERNAME%", getpass.getuser())
+        self.drive_token_file = f['drive_token_file'].replace("%USERNAME%", getpass.getuser())
+        self.drive_scopes = f['drive_scopes']
+        self.gmail_credentials_file = f['gmail_credentials_file'].replace("%USERNAME%", getpass.getuser())
+        self.gmail_token_file = f['gmail_token_file'].replace("%USERNAME%", getpass.getuser())
+        self.google_sheet_published = f['google_sheet_published']
+        self.gmail_scopes = f['gmail_scopes']
+
+
+    def set_attributes(self, params):
+
+        params = objdict(params)
+        for key, val in params.items():
+            params[key] = objdict(val)
+
+        return params
+
 
 
 

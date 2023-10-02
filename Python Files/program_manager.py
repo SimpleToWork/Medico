@@ -1,44 +1,46 @@
-import os
-from zipfile import ZipFile
-from pypdf import PdfMerger
-from global_modules import print_color, create_folder
-
-def unzip_files(zip_path, unzip_path):
-    with ZipFile(zip_path, 'r') as zObject:
-        zObject.extractall(path=unzip_path)
-
-    print_color(f'Zip Folder Extracted', color='g')
-
+from merge_files import merge_files_to_pdf
+from google_drive_class import GoogleDriveAPI
+from global_modules import ProgramCredentials, print_color
+from email_process import run_email_process
+from google_sheets_api import GoogleSheetsAPI
+import getpass
+import platform
+import datetime
+import pandas as pd
 
 
-def merge_files_to_pdf():
-    zip_path = f'C:\\Users\\Ricky\\Downloads\\2023.08.07, Beth Strumpf 3.zip'
-    unzip_path =  f'C:\\Users\\Ricky\\Downloads\\2023.08.07, Beth Strumpf 3'
-    pdf_file = f'{unzip_path}\\pdf_sample.pdf'
-    create_folder(unzip_path)
-    unzip_files(zip_path, unzip_path)
 
-    files_in_folder = os.listdir(unzip_path)
-    files_in_folder = [x for x in files_in_folder if ".pdf" in x.lower()]
-    print_color(files_in_folder, color='y')
+def google_sheet_update(project_folder, program_name, method):
+    client_secret_file = f'{project_folder}\\Text Files\\client_secret.json'
+    token_file = f'{project_folder}\\Text Files\\token.json'
+    sheet_id = '19FUWyywrtS4JTbOHW_GqDSEl0orqu99XCJJFa4upVlw'
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+    df = GoogleSheetsAPI(client_secret_file,token_file, sheet_id, SCOPES).get_data_from_sheet(sheetname='KYF ACHWORKS', range_name='A:E')
+    print_color(df, color='r')
 
-    # pdfs = ['file1.pdf', 'file2.pdf', 'file3.pdf', 'file4.pdf']
+    row_number = df.shape[0] + 2
 
-    merger = PdfMerger()
+    computer_name = platform.node()
+    user = getpass.getuser()
+    time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    for pdf in files_in_folder:
-        merger.append(f'{unzip_path}\\{pdf}')
-        print_color(f'{pdf} Merged', color='b')
 
-    merger.write(pdf_file)
-    merger.close()
+    data_list = [time_now, computer_name, user, program_name, method, True]
+    df = pd.DataFrame([data_list])
+    print_color(df)
+    GoogleSheetsAPI(client_secret_file,token_file, sheet_id, SCOPES).write_data_to_sheet(data =df ,sheetname='KYF ACHWORKS',
+      row_number=row_number,include_headers=False,  clear_data=False)
 
-    print_color('PDF Merged', color='y')
 
-def run_program():
-    merge_files_to_pdf()
+def run_program(environment):
+    x = ProgramCredentials(environment)
+    # merge_files_to_pdf()
+    run_email_process(x)
+
+
 
 
 
 if __name__ == '__main__':
-    run_program()
+    environment = 'development'
+    run_program(environment)
