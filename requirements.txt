@@ -11,3 +11,8 @@ PyPDF2
 pypdf
 python-docx
 docx2txt
+docx2pdf
+sheetfu
+openpyxl
+textract
+pywin32

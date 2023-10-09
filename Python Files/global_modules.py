@@ -43,11 +43,26 @@ class ProgramCredentials:
         self.drive_credentials_file = f['drive_credentials_file'].replace("%USERNAME%", getpass.getuser())
         self.drive_token_file = f['drive_token_file'].replace("%USERNAME%", getpass.getuser())
         self.drive_scopes = f['drive_scopes']
+
+        self.gsheet_credentials_file = f['gsheet_credentials_file'].replace("%USERNAME%", getpass.getuser())
+        self.gsheet_token_file = f['gsheet_token_file'].replace("%USERNAME%", getpass.getuser())
+        self.gsheet_scopes = f['gsheet_scopes']
+
         self.gmail_credentials_file = f['gmail_credentials_file'].replace("%USERNAME%", getpass.getuser())
         self.gmail_token_file = f['gmail_token_file'].replace("%USERNAME%", getpass.getuser())
-        self.google_sheet_published = f['google_sheet_published']
         self.gmail_scopes = f['gmail_scopes']
 
+        self.email_sender = f['email_sender']
+
+
+
+        self.google_sheet_published = f['google_sheet_published']
+        self.google_sheet_form_responses = f['google_sheet_form_responses']
+        self.google_sheet_response_detail = f['google_sheet_response_detail']
+
+        self.gmail_upload_folder_id = f['gmail_upload_folder_id']
+
+        self.auto_publish_sheet_name = f['auto_publish_sheet_name']
 
     def set_attributes(self, params):
 

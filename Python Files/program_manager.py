@@ -2,6 +2,7 @@ from merge_files import merge_files_to_pdf
 from google_drive_class import GoogleDriveAPI
 from global_modules import ProgramCredentials, print_color
 from email_process import run_email_process
+from file_upload_process import run_file_upload_process
 from google_sheets_api import GoogleSheetsAPI
 import getpass
 import platform
@@ -28,19 +29,23 @@ def google_sheet_update(project_folder, program_name, method):
     data_list = [time_now, computer_name, user, program_name, method, True]
     df = pd.DataFrame([data_list])
     print_color(df)
-    GoogleSheetsAPI(client_secret_file,token_file, sheet_id, SCOPES).write_data_to_sheet(data =df ,sheetname='KYF ACHWORKS',
-      row_number=row_number,include_headers=False,  clear_data=False)
+    # GoogleSheetsAPI(client_secret_file,token_file, sheet_id, SCOPES).write_data_to_sheet(data =df ,sheetname='KYF ACHWORKS',
+    #   row_number=row_number,include_headers=False,  clear_data=False)
 
 
-def run_program(environment):
+def run_program(environment, function_to_run):
     x = ProgramCredentials(environment)
     # merge_files_to_pdf()
-    run_email_process(x)
-
-
+    if function_to_run == 'email_process':
+        run_email_process(x)
+    elif function_to_run == 'upload_process':
+        run_file_upload_process(x)
 
 
 
 if __name__ == '__main__':
     environment = 'development'
-    run_program(environment)
+    function_to_run = 'upload_process'
+
+
+    run_program(environment, function_to_run)

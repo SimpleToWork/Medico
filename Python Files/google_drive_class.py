@@ -5,6 +5,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
 import io
+
 import os
 from global_modules import print_color
 
@@ -119,3 +120,48 @@ class GoogleDriveAPI():
 
         # print_color(type(file.getvalue()), color='r')
         # return file
+
+    def move_file(self, file_id, new_folder_id):
+        file = self.service.files().get(fileId=file_id, fields='parents').execute()
+        previous_parents = ",".join(file.get('parents'))
+
+        if new_folder_id != previous_parents:
+
+            # Move the file to the new folder
+            file = self.service.files().update(
+                fileId=file_id,
+                addParents=new_folder_id,
+                removeParents=previous_parents,
+                fields='id, parents'
+            ).execute()
+
+            print_color(f'File Moved from {previous_parents} To {new_folder_id}')
+        else:
+            print_color(f'New Folder and Parent Folder are the same', color='r')
+
+    def create_folder(self, folder_name, parent_folder):
+        """ Create a folder and prints the folder ID
+        Returns : Folder Id
+
+        Load pre-authorized user credentials from the environment.
+        TODO(developer) - See https://developers.google.com/identity
+        for guides on implementing OAuth2 for the application.
+        """
+
+
+        try:
+            # create drive api client
+            file_metadata = {
+                'name': folder_name,
+                'mimeType': 'application/vnd.google-apps.folder',
+                'parents': [parent_folder]
+            }
+
+            # pylint: disable=maybe-no-member
+            file = self.service.files().create(body=file_metadata, fields='id').execute()
+            print(F'Folder ID: "{file.get("id")}".')
+            return file.get('id')
+
+        except HttpError as error:
+            print(F'An error occurred: {error}')
+            return None
