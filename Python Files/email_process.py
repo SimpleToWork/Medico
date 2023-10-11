@@ -303,10 +303,11 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
     print_color(f'max_id: {max_id}', color='r')
 
     files = GdriveAPI.get_files(folder_id=child_folder_id)
-    # print_color(files, color='y')
+    print_color(files, color='y')
+    print_color(len(files), color='y')
 
-    all_pending_documents = [x['name'] for x in files]
-    files_dict = {item['id']: item['name'] for item in files if ".doc" in item['name'] and item['name'] not in recruited_files }
+    all_pending_documents = [x for x in files if "Z - " in x['name']]
+    files_dict = {item['id']: item['name'] for item in all_pending_documents if ".doc" in item['name'] and item['name'] not in recruited_files }
 
     print_color(files_dict, color='b')
     for key, val in files_dict.items():
@@ -314,13 +315,16 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
         print_color(key, val, color='r')
         max_id += 1
         process_doc_file(x=x, GdriveAPI=GdriveAPI, GsheetAPI=GsheetAPI, file_id= key, file_name = val, id_number=max_id)
+        time.sleep(2)
 
     return all_pending_documents
 
 def email_approved_files(x, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, all_pending_documents):
     file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:M")
+    print_color(file_data, color='g')
+    pending_documents = [x['name'] for x in all_pending_documents]
     data_approved_to_email = file_data[(file_data['approved_to_send_out_?'] == 'TRUE') & (file_data['document_emailed'] != 'TRUE') &
-                                       (file_data['document_name'].isin(all_pending_documents))
+                                       (file_data['document_name'].isin(pending_documents))
                                        ]
 
     print_color(data_approved_to_email, color='y')

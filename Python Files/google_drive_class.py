@@ -122,6 +122,7 @@ class GoogleDriveAPI():
         # return file
 
     def move_file(self, file_id, new_folder_id):
+        print_color(file_id, color='y')
         file = self.service.files().get(fileId=file_id, fields='parents').execute()
         previous_parents = ",".join(file.get('parents'))
 

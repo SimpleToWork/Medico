@@ -12,7 +12,7 @@ def get_form_data(x):
     GsheetAPI = GoogleSheetsAPI(credentials_file=x.gsheet_credentials_file, token_file=x.gsheet_token_file, scopes=x.gsheet_scopes,
                     sheet_id=x.google_sheet_form_responses)
 
-    df = GsheetAPI.get_data_from_sheet(sheetname='Form responses 1', range_name='A:J')
+    df = GsheetAPI.get_data_from_sheet(sheetname='Form responses 1', range_name='A:K')
     print_color(df, color='g')
 
     records_to_recruit = df[(df['processed'] != "TRUE")]
@@ -54,6 +54,10 @@ def process_records(x, records_to_recruit):
     folder_dict = {x.get('name'): x.get("id") for x in sub_response_folders}
     folder_names = [x.get('name') for x in sub_response_folders]
 
+    print_color(folder_dict, color='g')
+
+
+
     row_count = GsheetAPI.get_row_count(sheetname="Detailed Evaluation Data")
 
     for i in range(records_to_recruit.shape[0]):
@@ -81,35 +85,37 @@ def process_records(x, records_to_recruit):
         unique_files = files_to_upload.split(",")
         unique_file_ids = [x.split("https://drive.google.com/open?id=")[-1] for x in unique_files]
         print_color(unique_file_ids, color='r')
+        print_color(f'File to Move: {len(unique_file_ids)}', color='b')
 
         row_count += 1
         counter = -1
         data_to_upload = []
         for each_id in unique_file_ids:
             file_name = f"https://drive.google.com/open?id={each_id}"
+            print_color(file_name, color='y')
             folder_name = f"https://drive.google.com/drive/u/0/folders/{new_folder_id}"
             data_to_upload.append([timestamp, id, each_id, file_name, lawyer_name, email_address, patient_first_name, patient_last_name, patient_dob, date_of_exam, folder_name])
             counter +=1
             GdriveAPI.move_file(file_id=each_id,new_folder_id=new_folder_id)
 
             print_color(data_to_upload, color='b')
-
-
-        print_color(f'File count {len(unique_file_ids)}  Range {row_count} - {row_count+counter}', color='y')
-        GsheetAPI.insert_row_to_sheet(sheetname="Detailed Evaluation Data", gid=0,
-                            insert_range=['B', row_count, 'J', row_count+counter],
-                            data=data_to_upload
-                            )
-            # break
-        row_count += counter
-
-        processed_responses = [[id, 'TRUE']]
-        GsheetAPI_1.insert_row_to_sheet(sheetname="Processed Responses", gid=865982653,
-                                      insert_range=['A', 1, 'B', 1],
-                                      data=processed_responses
-                                      )
-
-        time.sleep(5)
+    #
+    #
+    #     print_color(f'File count {len(unique_file_ids)}  Range {row_count} - {row_count+counter}', color='y')
+    #     GsheetAPI.insert_row_to_sheet(sheetname="Detailed Evaluation Data", gid=0,
+    #                         insert_range=['B', row_count, 'J', row_count+counter],
+    #                         data=data_to_upload
+    #                         )
+    #         # break
+    #     row_count += counter
+    #
+    #     processed_responses = [[id, 'TRUE']]
+    #     GsheetAPI_1.insert_row_to_sheet(sheetname="Processed Responses", gid=865982653,
+    #                                   insert_range=['A', 1, 'B', 1],
+    #                                   data=processed_responses
+    #                                   )
+    #
+    #     time.sleep(5)
 
         # break
     #
