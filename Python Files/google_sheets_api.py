@@ -19,8 +19,33 @@ from collections import namedtuple
 # from sqlalchemy import inspect
 # import global_modules
 from global_modules import print_color
+import platform
+import datetime
+import getpass
 
 RangeCoordinates = namedtuple('RangeCoordinates', 'row column number_of_rows number_of_columns sheet_name')
+
+
+def google_sheet_update(x, program_name, method):
+
+    client_secret_file = x.stw_gsheet_credentials_file
+    token_file = x.stw_gsheet_token_file
+    sheet_id = x.stw_gsheet_dashboard_id
+    SCOPES = [x.stw_gsheet_scopes]
+    GsheetAPI = GoogleSheetsAPI(credentials_file=client_secret_file, token_file=token_file, scopes=SCOPES, sheet_id=sheet_id)
+
+    computer_name = platform.node()
+    user = getpass.getuser()
+    time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data_list = [time_now, computer_name, user, program_name, method, True]
+    sheet_name = x.stw_gsheet_dashboard_sheet_name
+
+    GsheetAPI.insert_row_to_sheet(sheetname=sheet_name, gid=x.stw_gsheet_gid,
+                                  insert_range=['A', 1, "F", 1],
+                                  data=[data_list])
+
+
+
 
 
 class GoogleSheetsAPI():

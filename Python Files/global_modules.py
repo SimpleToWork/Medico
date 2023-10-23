@@ -66,6 +66,13 @@ class ProgramCredentials:
         self.published_folder = f['published_folder']
         self.sub_published_folder = f['sub_published_folder']
 
+        self.stw_gsheet_credentials_file = f['stw_gsheet_credentials_file'].replace("%USERNAME%", getpass.getuser())
+        self.stw_gsheet_token_file = f['stw_gsheet_token_file'].replace("%USERNAME%", getpass.getuser())
+        self.stw_gsheet_scopes = f['stw_gsheet_scopes']
+        self.stw_gsheet_dashboard_id = f['stw_gsheet_dashboard_id']
+        self.stw_gsheet_dashboard_sheet_name = f['stw_gsheet_dashboard_sheet_name']
+        self.stw_gsheet_gid = f['stw_gsheet_gid']
+
 
     def set_attributes(self, params):
 
