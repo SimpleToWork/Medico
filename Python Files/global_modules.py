@@ -63,6 +63,9 @@ class ProgramCredentials:
         self.gmail_upload_folder_id = f['gmail_upload_folder_id']
 
         self.auto_publish_sheet_name = f['auto_publish_sheet_name']
+        self.published_folder = f['published_folder']
+        self.sub_published_folder = f['sub_published_folder']
+
 
     def set_attributes(self, params):
 

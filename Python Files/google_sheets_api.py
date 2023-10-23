@@ -244,3 +244,51 @@ class GoogleSheetsAPI():
                 body=body).execute()
 
         # self.service.spreadsheets().append_row(insertRow, table_range=f"{start_column}{start_row}")
+
+    def sort_sheet(self, gid, sort_range=  [1,1,1,1], dimensionIndex=1, sortOrder='ASCENDING'):
+
+        request_body = [
+            {
+                "sortRange": {
+                    "range": {
+                        "sheetId": gid,
+                        "startRowIndex": sort_range[1],
+                        "endRowIndex": sort_range[3],
+                        "startColumnIndex": sort_range[0],
+                        "endColumnIndex": sort_range[2]
+                    },
+                    "sortSpecs": [
+                        {
+                            "dimensionIndex": dimensionIndex,
+                            "sortOrder": sortOrder
+                        },
+                    ]
+                }
+            }
+        ]
+
+        body = {'requests': request_body}
+        print_color(body, color='p')
+
+        self.service.spreadsheets().batchUpdate(spreadsheetId=self.sheet_id, body=body).execute()
+
+
+    def delete_row_from_sheet(self,  gid,
+                            delete_range= ['A',1,'A',1]):
+        request_body = [
+            {
+                'deleteDimension': {
+                    'range': {
+                        'sheetId': gid,
+                        'dimension': 'ROWS',
+                        'startIndex': str(delete_range[1]),
+                        'endIndex':str(delete_range[3] + 1)
+                    }
+                }
+            }
+        ]
+
+        body = {'requests': request_body}
+        print_color(body, color='p')
+
+        self.service.spreadsheets().batchUpdate(spreadsheetId=self.sheet_id, body=body).execute()

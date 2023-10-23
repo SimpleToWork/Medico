@@ -121,6 +121,6 @@ def process_records(x, records_to_recruit):
     #
 
 
-def run_file_upload_process(x):
+def run_file_upload_process(x, environment):
     records_to_recruit = get_form_data(x)
     process_records(x, records_to_recruit)

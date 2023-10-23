@@ -141,13 +141,17 @@ class GoogleGmailAPI():
         encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
         body = {
-            'message': {
+
                 'raw': encoded_message
-            }
+
         }
-        # message = (self.service.users().messages().send(userId='me', body=body).execute())
+
+        # print_color(body, color='g')
+
         try:
-            message = (self.service.users().drafts().create(userId='me', body=body).execute())
+            # message = (self.service.users().drafts().create(userId='me', body=body).execute())
+            message = (self.service.users().messages().send(userId='me', body=body).execute())
+            # message = (self.service.users().messages().send("me", body).execute())
             print_color(f'Message for {email_subject} Has Been Sent', color='g')
             return True
         except Exception as e:

@@ -62,8 +62,8 @@ def upload_data_to_gsheet(x, GsheetAPI, df):
                                   # insert_dropdown=True, dropdown_values=dropdown_items,
                                   # dropdown_range=[10, 1, 11, 2]
                                   copy_area=True,
-                                  copy_source_range=[0, 10, 2, 11, 3],
-                                  copy_destinations_range=[0, 10, 1, 11, 2],
+                                  copy_source_range=[0, 10, 2, 12, 3],
+                                  copy_destinations_range=[0, 10, 1, 12, 2],
                                   copy_pasteType='PASTE_DATA_VALIDATION'
                                   )
 
@@ -84,7 +84,9 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
         "attorney_email": None,
         "patient_name": None,
         "date_of_birth": None,
-        "date_of_arrival": None
+        "date_of_arrival": None,
+        "all_fields_assigned": False,
+        "approved_to_send_out": None,
     }
 
     first_line_text = 0
@@ -156,6 +158,17 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
             if "@" and ".com" in text:
                 data_dict["attorney_email"] = [text]
 
+    if data_dict.get('date_of_report') is not None and \
+        data_dict.get('attorney_name') is not None and \
+        data_dict.get('attorney_email') is not None and \
+        data_dict.get('patient_name') is not None and \
+        data_dict.get('date_of_birth') is not None and \
+        data_dict.get('date_of_arrival') is not None:
+        data_dict["all_fields_assigned"] = True
+        data_dict["approved_to_send_out"] = True
+
+
+
 
     print_color(data_dict, color='r')
 
@@ -205,6 +218,7 @@ def email_doc_out(x, GmailAPI, file_name, date_of_report, attorney_name, attorne
         <br><span style="color:Black;font-weight:Bold; ">DOA:</span> 05/20/2020
         <br><span style="color:Black;font-weight:Bold; ">Date of Report: </span> 2022-12-21
     <br><br>Please contact our office if needed.
+    <br>732-972-4471
     '''
 
     print_color(pdf_export, color='g')
@@ -285,14 +299,31 @@ def move_drive_file(GdriveAPI, file_name, file_id, child_folders):
 
 def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publish_sheet_name ):
     print_color(child_folder_id, color='p')
+    row_count = GsheetAPI.get_row_count(sheetname=auto_publish_sheet_name)
+    GsheetAPI.sort_sheet( gid=0, sort_range= [1,1,17,row_count], dimensionIndex=11, sortOrder='ASCENDING')
 
-    recruited_file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:D")
+    recruited_file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:L")
+    lines_to_delete = recruited_file_data[(recruited_file_data['all_fields_assigned']=='FALSE') &
+                                          (recruited_file_data['approved_to_send_out_?'] != 'TRUE')]
+    lines_to_delete = lines_to_delete.iloc[::-1]
+
+    lines_to_delete['index'] = lines_to_delete.index
+    print_color(lines_to_delete, color='p')  # for i in range()
+    print_color(lines_to_delete, color='r')
+
+    for i in range(lines_to_delete.shape[0]):
+        line_id = lines_to_delete['index'].iloc[i]
+        print_color(line_id, color='r')
+        GsheetAPI.delete_row_from_sheet(gid=0,delete_range= ['A',line_id,'Q',line_id])
+        # break
+
+    recruited_file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:L")
     if recruited_file_data.shape[0] >0:
         recruited_files = recruited_file_data['document_name'].unique()
     else:
         recruited_files = []
     print_color(recruited_files, color='y')
-
+    print_color(recruited_file_data, color='r')
 
     if recruited_file_data.shape[0] == 0:
         max_id = 0
@@ -306,25 +337,36 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
     print_color(files, color='y')
     print_color(len(files), color='y')
 
-    all_pending_documents = [x for x in files if "Z - " in x['name']]
+    all_pending_documents = [x for x in files]
     files_dict = {item['id']: item['name'] for item in all_pending_documents if ".doc" in item['name'] and item['name'] not in recruited_files }
 
     print_color(files_dict, color='b')
     for key, val in files_dict.items():
-
         print_color(key, val, color='r')
         max_id += 1
-        process_doc_file(x=x, GdriveAPI=GdriveAPI, GsheetAPI=GsheetAPI, file_id= key, file_name = val, id_number=max_id)
+        process_doc_file(x=x, GdriveAPI=GdriveAPI, GsheetAPI=GsheetAPI, file_id=key, file_name=val, id_number=max_id)
         time.sleep(2)
+        # break
 
-    return all_pending_documents
+    # return all_pending_documents
 
-def email_approved_files(x, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, all_pending_documents):
-    file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:M")
+
+def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, child_folder_id):
+    files = GdriveAPI.get_files(folder_id=child_folder_id)
+    print_color(files, color='y')
+    print_color(len(files), color='y')
+
+    all_pending_documents = [x for x in files]
+    print_color(all_pending_documents, color='y')
+
+    file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:Q")
     print_color(file_data, color='g')
     pending_documents = [x['name'] for x in all_pending_documents]
-    data_approved_to_email = file_data[(file_data['approved_to_send_out_?'] == 'TRUE') & (file_data['document_emailed'] != 'TRUE') &
-                                       (file_data['document_name'].isin(pending_documents))
+    data_approved_to_email = file_data[(file_data['approved_to_send_out_?'] == 'TRUE')
+                                       & (file_data['document_emailed'] != 'TRUE')
+                                       & (file_data['document_name'].isin(pending_documents))
+                                       & (file_data['attorney_email'].str.contains(".com"))
+
                                        ]
 
     print_color(data_approved_to_email, color='y')
@@ -346,18 +388,22 @@ def email_approved_files(x, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_
         file_converted, pdf_export, file_type = convert_doc_to_pdf(x, file_name)
         subject = file_name.split(f'.{file_type}')[0]
 
-        attorney_email = 'admin@Simpletowork.com'
+        if environment == 'development':
+            attorney_email = 'admin@Simpletowork.com'
 
         if file_converted is True:
             email_sent = email_doc_out(x, GmailAPI, subject, date_of_report, attorney_name,attorney_email, patient_name, dob, doa, pdf_export)
             print_color(email_sent, color='r')
-            file_moved, new_file_folder = move_drive_file(GdriveAPI, file_name, file_id, child_folders)
+            file_moved = False
+            new_file_folder = None
+            if email_sent is True:
+                file_moved, new_file_folder = move_drive_file(GdriveAPI, file_name, file_id, child_folders)
 
         update_google_sheet_record(GsheetAPI, file_id, file_converted, email_sent, file_moved, new_file_folder)
+        # break
 
 
-
-def run_email_process(x):
+def run_email_process(x, environment):
     sheet_id = x.google_sheet_published
     auto_publish_sheet_name = x.auto_publish_sheet_name
 
@@ -365,14 +411,14 @@ def run_email_process(x):
     GsheetAPI = GoogleSheetsAPI(credentials_file=x.gsheet_credentials_file, token_file=x.gsheet_token_file, scopes=x.gsheet_scopes,sheet_id=sheet_id)
     GmailAPI = GoogleGmailAPI(credentials_file=x.gmail_credentials_file, token_file=x.gmail_token_file, scopes=x.gmail_scopes)
 
-    folder_name = "Published Reports"
+    folder_name = x.published_folder
     folders = GdriveAPI.get_drive_folder(folder_name=folder_name)
     folder_id = folders[0].get("id")
 
     child_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
     child_folder_id = None
     for each_folder in child_folders:
-        if each_folder.get("name") == 'Testing STW':
+        if each_folder.get("name") == x.sub_published_folder:
             child_folder_id = each_folder.get("id")
             break
 
@@ -380,23 +426,15 @@ def run_email_process(x):
     check which files have alreay been recruited
     get the difference and import into google sheet
     '''
-    all_pending_documents = get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id, auto_publish_sheet_name)
+    get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id, auto_publish_sheet_name)
     ''' email approved files
     check which pending files are approved to send out
     convert file to pdf
     email file out to attorney
     move file from auto publish folder to storage folder
     update google sheet accordingly    
-      '''
-
-    email_approved_files(x, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name,  all_pending_documents)
-
+    '''
+    email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, child_folder_id)
 
 
 
-
-    # # data_approved_to_email = data_approved_to_email[]
-    # print_color(all_pending_documents, color='b')
-    # print_color(file_data, color='y')
-    #
-    # print_color(data_approved_to_email, color='g')

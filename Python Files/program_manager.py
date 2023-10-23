@@ -37,15 +37,14 @@ def run_program(environment, function_to_run):
     x = ProgramCredentials(environment)
     # merge_files_to_pdf()
     if function_to_run == 'email_process':
-        run_email_process(x)
+        run_email_process(x, environment)
     elif function_to_run == 'upload_process':
-        run_file_upload_process(x)
+        run_file_upload_process(x, environment)
 
 
 
 if __name__ == '__main__':
     environment = 'development'
-    function_to_run = 'upload_process'
-
+    function_to_run = 'email_process'
 
     run_program(environment, function_to_run)
