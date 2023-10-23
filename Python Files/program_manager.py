@@ -9,7 +9,7 @@ import platform
 import datetime
 import pandas as pd
 
-
+import sys
 
 
 
@@ -25,8 +25,11 @@ def run_program(environment, function_to_run):
 
 
 if __name__ == '__main__':
-
-    environment = 'development'
-    function_to_run = 'Upload Process'
+    if len(sys.argv) == 1:
+        environment = 'development'
+        function_to_run = 'Upload Process'
+    else:
+        environment = sys.argv[1]
+        function_to_run = sys.argv[2]
 
     run_program(environment, function_to_run)
