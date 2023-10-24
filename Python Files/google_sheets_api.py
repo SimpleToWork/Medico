@@ -31,7 +31,7 @@ def google_sheet_update(x, program_name, method):
     client_secret_file = x.stw_gsheet_credentials_file
     token_file = x.stw_gsheet_token_file
     sheet_id = x.stw_gsheet_dashboard_id
-    SCOPES = [x.stw_gsheet_scopes]
+    SCOPES = x.stw_gsheet_scopes
     GsheetAPI = GoogleSheetsAPI(credentials_file=client_secret_file, token_file=token_file, scopes=SCOPES, sheet_id=sheet_id)
 
     computer_name = platform.node()

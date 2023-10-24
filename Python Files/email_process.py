@@ -1,7 +1,7 @@
 import datetime
 
 import pandas as pd
-
+from dateutil.parser import parse
 from google_drive_class import GoogleDriveAPI
 from google_sheets_api import GoogleSheetsAPI
 from gmail_api import GoogleGmailAPI
@@ -210,22 +210,48 @@ def convert_doc_to_pdf(x, file_name):
     return converted_to_pdf, pdf_export, file_type
 
 
+def is_date(string, fuzzy=False):
+    """
+    Return whether the string can be interpreted as a date.
+
+    :param string: str, string to check for date
+    :param fuzzy: bool, ignore unknown tokens in string if True
+    """
+    try:
+        if string is not None:
+            parse(string, fuzzy=fuzzy)
+
+        return True
+
+    except ValueError:
+        return False
+
+
 def email_doc_out(x, GmailAPI, file_name, date_of_report, attorney_name, attorney_email, patient_name, dob, doa, pdf_export):
+    if  is_date(dob, fuzzy=False):
+        dob = datetime.datetime.strptime(dob,"%Y-%m-%d").strftime('%m/%d/%Y')
+    if is_date(doa, fuzzy=False):
+        doa = datetime.datetime.strptime(doa,"%Y-%m-%d").strftime('%m/%d/%Y')
+    if is_date(date_of_report, fuzzy=False):
+        date_of_report = datetime.datetime.strptime(date_of_report, "%Y-%m-%d").strftime('%m/%d/%Y')
+
 
     email_body = \
-    f'''The attached report has been completed and is attached.
-        <br><span style="color:Black;font-weight:Bold; ">DOB:</span> 09/07/1959
-        <br><span style="color:Black;font-weight:Bold; ">DOA:</span> 05/20/2020
-        <br><span style="color:Black;font-weight:Bold; ">Date of Report: </span> 2022-12-21
+    f'''The report on your client has been completed and is attaced.
+        <br><span style="color:Black;font-weight:Bold; ">DOB:</span> {dob}
+        <br><span style="color:Black;font-weight:Bold; ">DOA:</span> {doa}
+        <br><span style="color:Black;font-weight:Bold; ">Date of Report: </span> {date_of_report}
     <br><br>Please contact our office if needed.
+
+    <br><br>Medico-Legal Evaluations
     <br>732-972-4471
     '''
 
     print_color(pdf_export, color='g')
-
+    subject = f"Report for: {patient_name} {date_of_report}"
     email_sent = GmailAPI.send_email(email_to=attorney_email,
                         email_sender=x.email_sender,
-                        email_subject = file_name,
+                        email_subject = subject,
                         email_cc = "",
                         email_bcc = "",
                         email_body=email_body,
@@ -333,6 +359,8 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
 
     print_color(f'max_id: {max_id}', color='r')
 
+
+    print_color(child_folder_id, color='y')
     files = GdriveAPI.get_files(folder_id=child_folder_id)
     print_color(files, color='y')
     print_color(len(files), color='y')
@@ -375,7 +403,7 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
         file_name = data_approved_to_email['document_name'].iloc[i]
         date_of_report = data_approved_to_email['date_of_report'].iloc[i]
         attorney_name = data_approved_to_email['attorney_name'].iloc[i]
-        # attorney_email = data_approved_to_email['attorney_email'].iloc[i]
+        attorney_email = data_approved_to_email['attorney_email'].iloc[i]
         patient_name = data_approved_to_email['patient_name'].iloc[i]
         dob = data_approved_to_email['dob'].iloc[i]
         doa = data_approved_to_email['doa'].iloc[i]
@@ -390,6 +418,8 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
 
         if environment == 'development':
             attorney_email = 'admin@Simpletowork.com'
+        # elif environment == 'production':
+        #     attorney_email = 'admin@Simpletowork.com'
 
         if file_converted is True:
             email_sent = email_doc_out(x, GmailAPI, subject, date_of_report, attorney_name,attorney_email, patient_name, dob, doa, pdf_export)
