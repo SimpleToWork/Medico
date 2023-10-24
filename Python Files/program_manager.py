@@ -26,7 +26,7 @@ def run_program(environment, function_to_run):
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        environment = 'production'
+        environment = 'development'
         function_to_run = 'Email Process'
     else:
         environment = sys.argv[1]

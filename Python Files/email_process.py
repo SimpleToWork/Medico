@@ -260,10 +260,11 @@ def email_doc_out(x, GmailAPI, file_name, date_of_report, attorney_name, attorne
     return email_sent
 
 
-def update_google_sheet_record(GsheetAPI, file_id, file_converted, email_sent, file_moved, new_file_folder):
+def update_google_sheet_record(GsheetAPI, id, file_id, file_converted, email_sent, file_moved, new_file_folder):
     sheetname = 'Converted Files'
     # row_number = GsheetAPI.get_row_count(sheetname) +1
-    data = [[file_id, file_converted, email_sent, file_moved, new_file_folder]]
+    id_file_id = f'{id}{file_id}'
+    data = [[id, file_id,id_file_id, file_converted, email_sent, file_moved, new_file_folder]]
     df = pd.DataFrame(data)
 
     GsheetAPI.insert_row_to_sheet(sheetname=sheetname, gid=1915603262,
@@ -358,15 +359,16 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
         max_id = int(recruited_file_data['id'].max())
 
     print_color(f'max_id: {max_id}', color='r')
-
-
     print_color(child_folder_id, color='y')
+
     files = GdriveAPI.get_files(folder_id=child_folder_id)
     print_color(files, color='y')
     print_color(len(files), color='y')
 
     all_pending_documents = [x for x in files]
-    files_dict = {item['id']: item['name'] for item in all_pending_documents if ".doc" in item['name'] and item['name'] not in recruited_files }
+    files_dict = {item['id']: item['name'] for item in all_pending_documents if ".doc" in item['name']}
+
+
 
     print_color(files_dict, color='b')
     for key, val in files_dict.items():
@@ -399,6 +401,7 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
 
     print_color(data_approved_to_email, color='y')
     for i in range(data_approved_to_email.shape[0]):
+        id  = data_approved_to_email['id'].iloc[i]
         file_id =  data_approved_to_email['file_id'].iloc[i]
         file_name = data_approved_to_email['document_name'].iloc[i]
         date_of_report = data_approved_to_email['date_of_report'].iloc[i]
@@ -429,7 +432,7 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
             if email_sent is True:
                 file_moved, new_file_folder = move_drive_file(GdriveAPI, file_name, file_id, child_folders)
 
-        update_google_sheet_record(GsheetAPI, file_id, file_converted, email_sent, file_moved, new_file_folder)
+        update_google_sheet_record(GsheetAPI, id, file_id, file_converted, email_sent, file_moved, new_file_folder)
         # break
 
 
