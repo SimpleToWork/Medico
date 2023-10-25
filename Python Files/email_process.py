@@ -141,6 +141,8 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
                 data_dict["date_of_birth"] = [text.upper().replace("D.O.B", "").replace(",", "").replace("\t", "").replace(":", "").strip()]
             if "DOA" in text.upper():
                 data_dict["date_of_arrival"] = [text.upper().replace("DOA","").replace("\t","").replace(":","").replace(",","\n").strip()]
+            if "DOI" in text.upper():
+                data_dict["date_of_arrival"] = [text.upper().replace("DOA", "").replace("\t", "").replace(":", "").replace(",", "\n").strip()]
             if "ESQ" in text.upper():
                 attorney_name = text.upper()
                 data_dict["attorney_name"] = [attorney_name.replace("ESQ","").replace(".","").replace(",","").strip()]
@@ -327,7 +329,7 @@ def move_drive_file(GdriveAPI, file_name, file_id, child_folders):
 def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publish_sheet_name ):
     print_color(child_folder_id, color='p')
     row_count = GsheetAPI.get_row_count(sheetname=auto_publish_sheet_name)
-    GsheetAPI.sort_sheet( gid=0, sort_range= [1,1,17,row_count], dimensionIndex=11, sortOrder='ASCENDING')
+    GsheetAPI.sort_sheet( gid=0, sort_range= [0,1,17,row_count], dimensionIndex=11, sortOrder='ASCENDING')
 
     recruited_file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:L")
     lines_to_delete = recruited_file_data[(recruited_file_data['all_fields_assigned']=='FALSE') &
@@ -398,6 +400,7 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
                                        & (file_data['attorney_email'].str.contains(".com"))
 
                                        ]
+    data_approved_to_email = data_approved_to_email.iloc[::-1]
 
     print_color(data_approved_to_email, color='y')
     for i in range(data_approved_to_email.shape[0]):
@@ -423,6 +426,8 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
             attorney_email = 'admin@Simpletowork.com'
         # elif environment == 'production':
         #     attorney_email = 'admin@Simpletowork.com'
+
+        print_color(id, file_id, color='y')
 
         if file_converted is True:
             email_sent = email_doc_out(x, GmailAPI, subject, date_of_report, attorney_name,attorney_email, patient_name, dob, doa, pdf_export)
