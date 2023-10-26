@@ -246,7 +246,7 @@ def email_doc_out(x, GmailAPI, file_name, date_of_report, attorney_name, attorne
     <br><br>Please contact our office if needed.
 
     <br><br>Medico-Legal Evaluations
-    <br>732-972-4471
+    <br>732-972-4771
     '''
 
     print_color(pdf_export, color='g')
