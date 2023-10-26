@@ -142,7 +142,7 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
             if "DOA" in text.upper():
                 data_dict["date_of_arrival"] = [text.upper().replace("DOA","").replace("\t","").replace(":","").replace(",","\n").strip()]
             if "DOI" in text.upper():
-                data_dict["date_of_arrival"] = [text.upper().replace("DOA", "").replace("\t", "").replace(":", "").replace(",", "\n").strip()]
+                data_dict["date_of_arrival"] = [text.upper().replace("DOI", "").replace("\t", "").replace(":", "").replace(",", "\n").strip()]
             if "ESQ" in text.upper():
                 attorney_name = text.upper()
                 data_dict["attorney_name"] = [attorney_name.replace("ESQ","").replace(".","").replace(",","").strip()]
