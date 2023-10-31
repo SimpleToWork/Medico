@@ -29,7 +29,11 @@ class GoogleDriveAPI():
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
+                # try:
                 creds.refresh(Request())
+                # except:
+                #     os.remove( self.token_file)
+                #     self.authenticate()
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
                     self.credentials_file,  self.scopes )

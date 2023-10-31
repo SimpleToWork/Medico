@@ -14,7 +14,7 @@ import string
 import math
 import pandas as pd
 import numpy as np
-
+import os
 from collections import namedtuple
 # from sqlalchemy import inspect
 # import global_modules
@@ -45,9 +45,6 @@ def google_sheet_update(x, program_name, method):
                                   data=[data_list])
 
 
-
-
-
 class GoogleSheetsAPI():
     def __init__(self, credentials_file=None, token_file=None, scopes=None, sheet_id=None):
         self.credentials_file = credentials_file
@@ -69,7 +66,11 @@ class GoogleSheetsAPI():
             # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
+                try:
+                    creds.refresh(Request())
+                except:
+                    os.remove(self.token_file)
+                    self.service_setup()
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(self.credentials_file, self.scopes)
                 creds = flow.run_local_server(port=0)
