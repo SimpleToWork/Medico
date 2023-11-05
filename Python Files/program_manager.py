@@ -15,19 +15,21 @@ import sys
 
 def run_program(environment, function_to_run):
     x = ProgramCredentials(environment)
-    # merge_files_to_pdf()
+
+
     if function_to_run == 'Email Process':
         run_email_process(x, environment)
     elif function_to_run == 'Upload Process':
         run_file_upload_process(x, environment)
-
+    elif function_to_run == 'merge_files_to_pdf':
+        merge_files_to_pdf()
     google_sheet_update(x, program_name="Medico", method=function_to_run)
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         environment = 'production'
-        function_to_run = 'Email Process'
+        function_to_run = 'Upload Process'
     else:
         environment = sys.argv[1]
         function_to_run = sys.argv[2]

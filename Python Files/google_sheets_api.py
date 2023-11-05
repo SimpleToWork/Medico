@@ -55,6 +55,8 @@ class GoogleSheetsAPI():
 
         self.service = self.service_setup()
 
+        print_color(f'https://docs.google.com/spreadsheets/d/{sheet_id}', color='y')
+
 
     def service_setup(self):
         creds = None

@@ -46,10 +46,11 @@ def process_records(x, records_to_recruit):
 
 
     for each_folder in child_folders:
-        if each_folder.get("name") == 'Responses':
+        if each_folder.get("name") == 'RECORD-INPUT':
             response_folder_id = each_folder.get("id")
             break
 
+    print_color(response_folder_id, color='y')
     sub_response_folders = GdriveAPI.get_child_folders(folder_id=response_folder_id)
     folder_dict = {x.get('name'): x.get("id") for x in sub_response_folders}
     folder_names = [x.get('name') for x in sub_response_folders]
@@ -57,14 +58,14 @@ def process_records(x, records_to_recruit):
     print_color(folder_dict, color='g')
 
 
-
     row_count = GsheetAPI.get_row_count(sheetname="Detailed Evaluation Data")
 
     for i in range(records_to_recruit.shape[0]):
         id = records_to_recruit['id'].iloc[i]
         files_to_upload = records_to_recruit['please_upload_up_to_10_files_here'].iloc[i]
-        date_of_exam = records_to_recruit['date_of_exam']
-        file_name_date_of_exam = date_of_exam.iloc[i].strftime('%Y.%m.%d')
+        date_of_exam = records_to_recruit['date_of_exam'].iloc[i]
+        print_color(date_of_exam, color='g')
+        file_name_date_of_exam = date_of_exam.strftime('%Y.%m.%d')
         date_of_exam = date_of_exam.strftime('%Y-%m-%d')
         patient_first_name = records_to_recruit['patient_first_name'].iloc[i]
         patient_last_name = records_to_recruit['patient_last_name'].iloc[i]
@@ -73,13 +74,11 @@ def process_records(x, records_to_recruit):
         patient_dob = records_to_recruit['patient_dob'].iloc[i].strftime('%Y-%m-%d')
         email_address = records_to_recruit['email_address'].iloc[i]
 
-
         name_of_new_folder = f'{file_name_date_of_exam} {patient_last_name}, {patient_first_name} '
         if name_of_new_folder not in folder_names:
             new_folder_id = GdriveAPI.create_folder(name_of_new_folder, response_folder_id)
         else:
             new_folder_id = folder_dict.get(name_of_new_folder)
-
 
         print_color(name_of_new_folder, new_folder_id, color='b')
         print_color(files_to_upload, color='y')
@@ -96,28 +95,30 @@ def process_records(x, records_to_recruit):
             file_name = f"https://drive.google.com/open?id={each_id}"
             print_color(file_name, color='y')
             folder_name = f"https://drive.google.com/drive/u/0/folders/{new_folder_id}"
-            data_to_upload.append([timestamp, id, each_id, file_name, lawyer_name, email_address, patient_first_name, patient_last_name, patient_dob, date_of_exam, folder_name])
+            data_to_upload.append([timestamp, id, each_id, file_name, lawyer_name, email_address, patient_first_name,
+                                   patient_last_name, patient_dob, date_of_exam, folder_name])
             counter +=1
             GdriveAPI.move_file(file_id=each_id,new_folder_id=new_folder_id)
 
             print_color(data_to_upload, color='b')
-    #
-    #
-    #     print_color(f'File count {len(unique_file_ids)}  Range {row_count} - {row_count+counter}', color='y')
-    #     GsheetAPI.insert_row_to_sheet(sheetname="Detailed Evaluation Data", gid=0,
-    #                         insert_range=['B', row_count, 'J', row_count+counter],
-    #                         data=data_to_upload
-    #                         )
-    #         # break
-    #     row_count += counter
-    #
-    #     processed_responses = [[id, 'TRUE']]
-    #     GsheetAPI_1.insert_row_to_sheet(sheetname="Processed Responses", gid=865982653,
-    #                                   insert_range=['A', 1, 'B', 1],
-    #                                   data=processed_responses
-    #                                   )
-    #
-    #     time.sleep(5)
+
+
+
+        print_color(f'File count {len(unique_file_ids)}  Range {row_count} - {row_count+counter}', color='y')
+        GsheetAPI.insert_row_to_sheet(sheetname="Detailed Evaluation Data", gid=0,
+                            insert_range=['B', row_count, 'J', row_count+counter],
+                            data=data_to_upload
+                            )
+            # break
+        row_count += counter
+
+        processed_responses = [[id, 'TRUE']]
+        GsheetAPI_1.insert_row_to_sheet(sheetname="Processed Responses", gid=865982653,
+                                      insert_range=['A', 1, 'B', 1],
+                                      data=processed_responses
+                                      )
+
+        time.sleep(5)
 
         # break
     #
