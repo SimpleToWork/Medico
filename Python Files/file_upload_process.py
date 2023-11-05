@@ -63,7 +63,9 @@ def process_records(x, records_to_recruit):
     for i in range(records_to_recruit.shape[0]):
         id = records_to_recruit['id'].iloc[i]
         files_to_upload = records_to_recruit['please_upload_up_to_10_files_here'].iloc[i]
-        date_of_exam = records_to_recruit['date_of_exam'].iloc[i].strftime('%Y-%m-%d')
+        date_of_exam = records_to_recruit['date_of_exam']
+        file_name_date_of_exam = date_of_exam.iloc[i].strftime('%Y.%m.%d')
+        date_of_exam = date_of_exam.strftime('%Y-%m-%d')
         patient_first_name = records_to_recruit['patient_first_name'].iloc[i]
         patient_last_name = records_to_recruit['patient_last_name'].iloc[i]
         timestamp = records_to_recruit['timestamp'].iloc[i].strftime('%Y-%m-%d %H:%M:%S')
@@ -72,7 +74,7 @@ def process_records(x, records_to_recruit):
         email_address = records_to_recruit['email_address'].iloc[i]
 
 
-        name_of_new_folder = f'{date_of_exam} {patient_first_name} {patient_last_name}'
+        name_of_new_folder = f'{file_name_date_of_exam} {patient_last_name}, {patient_first_name} '
         if name_of_new_folder not in folder_names:
             new_folder_id = GdriveAPI.create_folder(name_of_new_folder, response_folder_id)
         else:

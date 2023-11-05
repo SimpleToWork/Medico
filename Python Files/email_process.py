@@ -157,7 +157,7 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
                         data_dict["attorney_name"] = [ attorney_name.replace("ESQ", "").replace(".", "").replace(",", "").strip()]
 
 
-            if "@" and (".com" in text or ".law" in text):
+            if "@" and (".com" in text or ".law" in text or ".net" in text):
                 data_dict["attorney_email"] = [text]
 
     if data_dict.get('date_of_report') is not None and \
