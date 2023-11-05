@@ -397,7 +397,7 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
     data_approved_to_email = file_data[(file_data['approved_to_send_out_?'] == 'TRUE')
                                        & (file_data['document_emailed'] != 'TRUE')
                                        & (file_data['document_name'].isin(pending_documents))
-                                       & ((file_data['attorney_email'].str.contains(".com") | (file_data['attorney_email'].str.contains(".law"))))
+                                       & (file_data['attorney_email'].str.contains(".com") | file_data['attorney_email'].str.contains(".law") | file_data['attorney_email'].str.contains(".net"))
 
                                        ]
     data_approved_to_email = data_approved_to_email.iloc[::-1]
