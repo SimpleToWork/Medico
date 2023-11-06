@@ -170,3 +170,10 @@ class GoogleDriveAPI():
         except HttpError as error:
             print(F'An error occurred: {error}')
             return None
+
+    def rename_file(self, file_id, new_file_name):
+        body = {'name': new_file_name}
+        results =  self.service.files().update(fileId=file_id, body=body).execute()
+
+        print_color(f'File Name Changed to: {new_file_name}')
+        return results

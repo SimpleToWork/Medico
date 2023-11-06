@@ -114,7 +114,7 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
 
 
     for i, row_text in enumerate(text_list):
-        if i <= 30:
+        if i <= 50:
             text = row_text
             print_color(text, color='y')
 
@@ -312,13 +312,25 @@ def move_drive_file(GdriveAPI, file_name, file_id, child_folders):
     move_folder_id = None
 
     for each_item in child_folders:
-
         if each_item['name'] == move_file_folder:
             move_folder_id = each_item['id']
             break
 
+    existing_files = GdriveAPI.get_files(move_folder_id)
+    existing_files = [x.get("name") for x in existing_files]
+    print_color(existing_files, color='y')
+
+    core_file_name = file_name.split(".doc")[0]
+    existing_files = [x for x in existing_files if core_file_name in x]
+    print_color(existing_files, color='y')
     print_color(file_start_letter, move_file_folder, move_folder_id, color='r')
     print_color(file_name, file_id, color='b')
+    if len(existing_files) > 0:
+        print_color(f'File Already Exists', color='r')
+        extention =  file_name.split(".doc")[-1]
+        core_file_name = file_name.split(".doc")[0]
+        new_file_name = f'{core_file_name} {len(existing_files) + 1} .doc{extention}'
+        GdriveAPI.rename_file(file_id, new_file_name)
 
     GdriveAPI.move_file(file_id=file_id, new_folder_id=move_folder_id)
 
@@ -369,8 +381,6 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
 
     all_pending_documents = [x for x in files]
     files_dict = {item['id']: item['name'] for item in all_pending_documents if ".doc" in item['name']}
-
-
 
     print_color(files_dict, color='b')
     for key, val in files_dict.items():
