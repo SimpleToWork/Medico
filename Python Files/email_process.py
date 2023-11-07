@@ -23,19 +23,6 @@ import re
 
 w = wc.Dispatch('Word.Application')
 
-def is_date(string, fuzzy=False):
-    """
-    Return whether the string can be interpreted as a date.
-
-    :param fuzzy: bool, ignore unknown tokens in string if True
-    """
-    try:
-        parse(string, fuzzy=fuzzy)
-        return True
-
-    except ValueError:
-        return False
-
 
 def upload_data_to_gsheet(x, GsheetAPI, df):
     sheet_name = x.auto_publish_sheet_name
@@ -128,22 +115,23 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
             # lines.append(paragraph.text)
             # print(paragraph.text)
             if first_line_text != 0 and date_of_report is None:
-                date_of_report = text
+                date_of_report = parse(text, fuzzy=False).strftime("%Y-%m-%d")
+                print_color(f'date_of_report: {date_of_report}', color='r')
 
                 data_dict["date_of_report"] = [date_of_report]
-            if "RE:" in text.upper():
+            if "RE:" in text.upper()  and data_dict["patient_name"] is None:
                 data_dict["patient_name"] = [text.upper().replace("RE:","").replace(",","").replace("\t","").strip()]
-            elif "NAME: " in text.upper():
+            elif "NAME: " in text.upper()  and data_dict["patient_name"] is None:
                 data_dict["patient_name"] = [text.upper().replace("NAME:", "").replace(",", "").replace("\t", "").strip()]
-            if "DOB" in text.upper():
+            if "DOB" in text.upper() and data_dict["date_of_birth"] is None:
                 data_dict["date_of_birth"] =[text.upper().replace("DOB","").replace(",","").replace("\t","").replace(":","").strip()]
-            if "D.O.B" in text.upper():
+            if "D.O.B" in text.upper() and data_dict["date_of_birth"] is None:
                 data_dict["date_of_birth"] = [text.upper().replace("D.O.B", "").replace(",", "").replace("\t", "").replace(":", "").strip()]
-            if "DOA" in text.upper():
+            if "DOA" in text.upper() and data_dict["date_of_arrival"] is None:
                 data_dict["date_of_arrival"] = [text.upper().replace("DOA","").replace("\t","").replace(":","").replace(",","\n").strip()]
-            if "DOI" in text.upper():
+            if "DOI" in text.upper() and data_dict["date_of_arrival"] is None:
                 data_dict["date_of_arrival"] = [text.upper().replace("DOI", "").replace("\t", "").replace(":", "").replace(",", "\n").strip()]
-            if "ESQ" in text.upper():
+            if "ESQ" in text.upper() and data_dict["attorney_name"] is None:
                 attorney_name = text.upper()
                 data_dict["attorney_name"] = [attorney_name.replace("ESQ","").replace(".","").replace(",","").strip()]
             if attorney_name is None:
@@ -343,14 +331,21 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
     row_count = GsheetAPI.get_row_count(sheetname=auto_publish_sheet_name)
     GsheetAPI.sort_sheet( gid=0, sort_range= [0,1,17,row_count], dimensionIndex=11, sortOrder='ASCENDING')
 
-    recruited_file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:L")
+    recruited_file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:M")
     lines_to_delete = recruited_file_data[(recruited_file_data['all_fields_assigned']=='FALSE') &
                                           (recruited_file_data['approved_to_send_out_?'] != 'TRUE')]
     lines_to_delete = lines_to_delete.iloc[::-1]
 
     lines_to_delete['index'] = lines_to_delete.index
+
     print_color(lines_to_delete, color='p')  # for i in range()
     print_color(lines_to_delete, color='r')
+
+    print_color(recruited_file_data.columns, color='y')
+    existing_files_not_emailed_out = recruited_file_data[(recruited_file_data['approved_to_send_out_?']=='TRUE') &
+                                          (recruited_file_data['doc_converted_to_pdf'] != 'TRUE')]
+
+
 
     for i in range(lines_to_delete.shape[0]):
         line_id = lines_to_delete['index'].iloc[i]
@@ -380,7 +375,12 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
     print_color(len(files), color='y')
 
     all_pending_documents = [x for x in files]
-    files_dict = {item['id']: item['name'] for item in all_pending_documents if ".doc" in item['name']}
+    docs_pending_email = existing_files_not_emailed_out['document_name'].unique().tolist()
+    files_dict = {item['id']: item['name'] for item in all_pending_documents if ".doc" in item['name'] and item['name'] not in docs_pending_email}
+
+    print_color(existing_files_not_emailed_out, color='g')
+    print_color(docs_pending_email, color='g')
+
 
     print_color(files_dict, color='b')
     for key, val in files_dict.items():
