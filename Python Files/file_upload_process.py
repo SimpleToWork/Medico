@@ -65,8 +65,12 @@ def process_records(x, records_to_recruit):
         files_to_upload = records_to_recruit['please_upload_up_to_10_files_here'].iloc[i]
         date_of_exam = records_to_recruit['date_of_exam'].iloc[i]
         print_color(date_of_exam, color='g')
-        file_name_date_of_exam = date_of_exam.strftime('%Y.%m.%d')
-        date_of_exam = date_of_exam.strftime('%Y-%m-%d')
+        if str(date_of_exam) != 'NaT':
+            file_name_date_of_exam = date_of_exam.strftime('%Y.%m.%d')
+            date_of_exam = date_of_exam.strftime('%Y-%m-%d')
+        else:
+            file_name_date_of_exam = (datetime.datetime.now() + datetime.timedelta(days=365)).strftime('%Y.%m.%d')
+            date_of_exam = (datetime.datetime.now() + datetime.timedelta(days=365)).strftime('%Y-%m-%d')
         patient_first_name = records_to_recruit['patient_first_name'].iloc[i]
         patient_last_name = records_to_recruit['patient_last_name'].iloc[i]
         timestamp = records_to_recruit['timestamp'].iloc[i].strftime('%Y-%m-%d %H:%M:%S')

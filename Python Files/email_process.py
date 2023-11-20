@@ -105,7 +105,6 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
             text = row_text
             print_color(text, color='y')
 
-
             if first_line_text ==0:
                 if text.strip() != "":
                     if is_date(text.strip()):
@@ -135,11 +134,10 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
                 attorney_name = text.upper()
                 data_dict["attorney_name"] = [attorney_name.replace("ESQ","").replace(".","").replace(",","").strip()]
             if attorney_name is None:
-
                 if first_line_text <= i <= 5:
                     print_color(f'attorney_name Here {i}')
                     print_color(text, color='r')
-                    if text.upper() != "":
+                    if text.upper() != "" and "draft" not in text.lower() and not  is_date(text.strip()):
 
                         attorney_name = text.upper()
                         data_dict["attorney_name"] = [ attorney_name.replace("ESQ", "").replace(".", "").replace(",", "").strip()]
@@ -304,6 +302,7 @@ def move_drive_file(GdriveAPI, file_name, file_id, child_folders):
             move_folder_id = each_item['id']
             break
 
+    print_color(f'move_folder_id: {move_folder_id}')
     existing_files = GdriveAPI.get_files(move_folder_id)
     existing_files = [x.get("name") for x in existing_files]
     print_color(existing_files, color='y')
@@ -315,9 +314,9 @@ def move_drive_file(GdriveAPI, file_name, file_id, child_folders):
     print_color(file_name, file_id, color='b')
     if len(existing_files) > 0:
         print_color(f'File Already Exists', color='r')
-        extention =  file_name.split(".doc")[-1]
+        extension = file_name.split(".doc")[-1]
         core_file_name = file_name.split(".doc")[0]
-        new_file_name = f'{core_file_name} {len(existing_files) + 1} .doc{extention}'
+        new_file_name = f'{core_file_name} {len(existing_files) + 1} .doc{extension}'
         GdriveAPI.rename_file(file_id, new_file_name)
 
     GdriveAPI.move_file(file_id=file_id, new_folder_id=move_folder_id)
@@ -442,6 +441,7 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
         if file_converted is True:
             email_sent = email_doc_out(x, GmailAPI, subject, date_of_report, attorney_name,attorney_email, patient_name, dob, doa, pdf_export)
             print_color(email_sent, color='r')
+            # email_sent = True
             file_moved = False
             new_file_folder = None
             if email_sent is True:
