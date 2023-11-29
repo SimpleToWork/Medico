@@ -81,10 +81,10 @@ def get_existing_patient_folders(GdriveAPI, response_folder_id):
     sub_child_folders = GdriveAPI.get_child_folders(folder_id=response_folder_id)
     # print_color(sub_child_folders, color='g')
 
-    for each_folder in sub_child_folders:
-        if each_folder.get("name") == 'Processed Inputs':
-            processed_folder_id = each_folder.get("id")
-            break
+    # for each_folder in sub_child_folders:
+    #     if each_folder.get("name") == 'Processed Inputs':
+    #         processed_folder_id = each_folder.get("id")
+    #         break
 
     existing_patient_folders = {}
     for each_folder in sub_child_folders:
@@ -98,7 +98,7 @@ def get_existing_patient_folders(GdriveAPI, response_folder_id):
 
     # print_color(existing_patient_folders, color='y')
 
-    return processed_folder_id, existing_patient_folders
+    return existing_patient_folders
 
 
 def rename_existing_folders(GdriveAPI, existing_patient_folders):
@@ -151,21 +151,25 @@ def merge_existing_folders(GdriveAPI, existing_patient_folders):
 def import_new_folders(engine, database_name, existing_patient_folders):
     table_name = 'folders'
     if inspect(engine).has_table(table_name):
-        data_df = pd.read_sql(f'Select Folder_ID, Folder_Name from {table_name}', con=engine)
+        data_df = pd.read_sql(f'Select "SQL" as `TYPE`, Folder_ID, Folder_Name from {table_name}', con=engine)
     else:
         data_df = pd.DataFrame()
 
     print_color(data_df, color='r')
     df = pd.DataFrame.from_dict(existing_patient_folders, orient='columns').transpose()
     df['Folder_Name'] = df.index
+    df.insert(0, "TYPE", "Google Drive")
     df = df.reset_index(drop=True)
 
-    df.columns = ['Folder_ID', 'Folder_Name']
+    df.columns = ["TYPE", 'Folder_ID', 'Folder_Name']
     print_color(df, color='g')
     # df = df[[ 'Folder_ID', 'Folder_Name']]
 
-    df = pd.concat([df, data_df]).drop_duplicates(keep=False)
+    df = pd.concat([df, data_df]).drop_duplicates(subset=['Folder_ID', 'Folder_Name'], keep=False)
+    df = df[df['TYPE'] == "Google Drive"]
     print_color(df, color='p')
+
+    df = df.drop(columns=['TYPE'])
 
     sql_types = Get_SQL_Types(df).data_types
     df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=database_name, chunksize=1000,
@@ -373,8 +377,9 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
     create_folder(file_export)
     extension_list = ["pdf", "docx", "doc", "png", "jpeg", "jpg"]
     df = pd.read_sql(f'''Select * from folders where (New_Files_Imported is null or New_Files_Imported = 1)
-        and Folder_Name not in ("1 - Folders For Review With Alan", "Processed Inputs")
-        and Folder_Name in ("2023.07.27, Riker, Jesse")
+        and (PDF_File_Processed != 1 or PDF_File_Processed is null)
+        and Folder_Name not in ("1 - Folders For Review With Alan", "Processed Inputs", "Doubt Files", "Old Reports")
+       -- and Folder_Name in ("2023.11.29, Rodriguez, Doreen")
         order by Folder_Name
     ''', con=engine)
     print_color(df, color='r')
@@ -426,7 +431,6 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
 
             '''Step 1 - Unzip any Zip Files *'''
 
-
             for each_file in folder_files:
                 file_extension = each_file.get("file_extension")
                 file_id = each_file.get("id")
@@ -467,13 +471,14 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
             sorted_files = sort_files(folder_files)
             '''Step 7 - Merge Files To one PDF'''
             print_color(len(sorted_files),color='y')
-            merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, extension_list,
-                               processed_folder_id, response_folder_id, folder_id)
+            merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, extension_list, processed_folder_id,
+                         response_folder_id, folder_id)
 
+            scripts = []
+            scripts.append(f'Update folders set PDF_File_Processed = True, New_Files_Imported=null where Folder_ID = "{folder_id}"')
+            run_sql_scripts(engine=engine, scripts=scripts)
 
-
-
-        break
+        # break
 
 
 
@@ -503,15 +508,15 @@ def merge_files_to_pdf(x, environment):
     print_color(response_folder_id, color='y')
 
     '''GET DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    processed_folder_id, existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id)
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id)
     '''RENAME FOLDERS THAT ARE NOT FORMATTED PROPERLY'''
     rename_existing_folders(GdriveAPI, existing_patient_folders)
     '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    processed_folder_id, existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id)
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id)
     '''MERGE FOLDERS THAT HAVE THE SAME NAME'''
     merge_existing_folders(GdriveAPI, existing_patient_folders)
     '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    processed_folder_id, existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id)
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id)
     '''MAP FOLDERS TO SQL'''
     import_new_folders(engine_1, database_name, existing_patient_folders)
     '''MAP / MOVE NEW FILES IN RECORD INPUT'''
