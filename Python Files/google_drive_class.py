@@ -133,7 +133,7 @@ class GoogleDriveAPI():
             done = False
             while done is False:
                 status, done = downloader.next_chunk()
-                print(F'Download {int(status.progress() * 100)}.')
+                print(F'Download {int(status.progress() * 100)}%')
 
 
         except HttpError as error:
@@ -221,10 +221,11 @@ class GoogleDriveAPI():
         try:
             file = self.service.files().delete(fileId=file_id).execute()
             print_color(f'File Name: {file_name} with File ID {file_id} Delete', color='r')
+            return True
         except Exception as e:
             print_color(e, color='r')
             print_color(f'Folder Cannot Be Deleted', color='r')
-
+            return False
 
     def rename_file(self, file_id, new_file_name):
         body = {'name': new_file_name}

@@ -16,6 +16,7 @@ def get_form_data(x):
     print_color(df, color='g')
 
     records_to_recruit = df[(df['processed'] != "TRUE")]
+    print_color(records_to_recruit, color='y')
     if records_to_recruit.shape[0] >0:
         records_to_recruit['patient_dob'] = pd.to_datetime(records_to_recruit['patient_dob'], format="%d/%m/%Y")
         records_to_recruit['date_of_exam'] = pd.to_datetime(records_to_recruit['date_of_exam'] , format="%d/%m/%Y")
@@ -78,7 +79,7 @@ def process_records(x, records_to_recruit):
         patient_dob = records_to_recruit['patient_dob'].iloc[i].strftime('%Y-%m-%d')
         email_address = records_to_recruit['email_address'].iloc[i]
 
-        name_of_new_folder = f'{file_name_date_of_exam} {patient_last_name}, {patient_first_name} '
+        name_of_new_folder = f'{file_name_date_of_exam}, {patient_last_name}, {patient_first_name} '
         if name_of_new_folder not in folder_names:
             new_folder_id = GdriveAPI.create_folder(name_of_new_folder, response_folder_id)
         else:

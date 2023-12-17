@@ -20,3 +20,6 @@ SQLAlchemy==1.4.36
 mysql-client==0.0.1
 mysql-connector==2.2.9
 mysql-connector-python==8.0.17
+reportlab
+PyMuPDF
+pypandoc
