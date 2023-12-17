@@ -60,6 +60,7 @@ class ProgramCredentials:
         self.google_sheet_published = f['google_sheet_published']
         self.google_sheet_form_responses = f['google_sheet_form_responses']
         self.google_sheet_response_detail = f['google_sheet_response_detail']
+        self.google_sheet_merge_process = f['google_sheet_merge_process']
 
         self.gmail_upload_folder_id = f['gmail_upload_folder_id']
 
