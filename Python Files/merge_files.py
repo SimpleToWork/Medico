@@ -126,6 +126,8 @@ def get_docx_page_count(file_path):
 
 def get_existing_patient_folders(GdriveAPI=None, response_folder_id=None, include_processed_folders=False):
     sub_child_folders = GdriveAPI.get_child_folders(folder_id=response_folder_id)
+    print_color(sub_child_folders, color='r')
+    sub_child_folders = [x for x in sub_child_folders if x.get("trashed") is False]
     # print_color(sub_child_folders, color='g')
 
     processed_folder_id = None
@@ -268,13 +270,16 @@ def import_new_folders(engine, database_name, existing_patient_folders):
     print_color(new_df, color='y')
     for i in range(new_df.shape[0]):
         check_exists = new_df['TYPE_y'].iloc[i]
-        folder_id   = new_df['Folder_ID'].iloc[i]
+        folder_id = new_df['Folder_ID'].iloc[i]
         print_color(check_exists, color='r')
         if str(check_exists) == 'nan':
             run_sql_scripts(engine=engine, scripts=[f'Delete from folders where folder_id = "{folder_id}"'])
 
 
 def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_folders):
+
+    merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
+
     numbers = number_list()
     all_files = GdriveAPI.get_files(folder_id=response_folder_id)
     print_color(len(all_files), color='y')
@@ -284,8 +289,9 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
     folder_dict = {}
 
     for i, each_file in enumerate(all_files):
-        # print_color(i, each_file, color='g')
+
         core_file_name = ".".join(each_file.get("name").split(".")[:-1])
+        print_color(i, core_file_name, each_file.get("name"), color='g')
         file_id = each_file.get("id")
         file_extension = each_file.get("name").split(".")[-1]
         if core_file_name[-2:].strip() in numbers:
@@ -293,100 +299,131 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
             print_color(i, core_file_name, color='r')
             core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
             if core_file_name in folder_dict.keys():
+                folder_dict[core_file_name]["ids"].append(file_id)
+                folder_dict[core_file_name]["extensions"].append(file_extension)
+            else:
+                folder_dict.update({core_file_name: {"ids": [file_id], "extensions": [file_extension]}})
+        else:
+            core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
+            print_color(i, core_file_name, color='y')
+            if core_file_name in folder_dict.keys():
+                folder_dict[core_file_name]["ids"].append(file_id)
+                folder_dict[core_file_name]["extensions"].append(file_extension)
+            else:
+                folder_dict.update({core_file_name:  {"ids": [file_id], "extensions": [file_extension]}})
+
+    folder_dict = dict(sorted(folder_dict.items()))
+    print_color(folder_dict, color='g')
+
+
+    ''' CORE NAME = DATE, LAST NAME, FIRST NAME'''
+    ''' ONLY MOVE FILES THAT HAVE MORE THAN 1 FILE PER CORE NAME'''
+    patient_folders = list(existing_patient_folders.keys())
+    for key, val in folder_dict.items():
+        print_color(key, val, color='p')
+        if key in patient_folders:
+            print_color(f'Folder Already Exists', color='y')
+            parent_folder_id = existing_patient_folders.get(key)[0]
+            data = GdriveAPI.get_file_data(parent_folder_id)
+            print_color(data.get("parents")[0] , response_folder_id, color='g')
+            if data.get("parents")[0] != response_folder_id:
+               GdriveAPI.move_file(file_id=parent_folder_id, new_folder_id=response_folder_id)
+               scripts = [f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
+                               values("{parent_folder_id}", "{key}", True)''']
+               run_sql_scripts(engine=engine, scripts=scripts)
+
+            for each_id in val.get("ids"):
+                file_df = merge_process_df[(merge_process_df['Folder_ID'] == each_id)]
+                if file_df.shape[0] > 0:
+                    scripts.append(f'Delete from merge_process where Folder_ID = "{each_id}"')
+                GdriveAPI.move_file(file_id=each_id, new_folder_id=parent_folder_id)
+            scripts = [f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null where Folder_ID="{parent_folder_id}"']
+            run_sql_scripts(engine=engine, scripts=scripts)
+        else:
+            if len(val.get("ids")) > 1:
+                print_color(f'Folder Does Not Exists', color='r')
+                folder_id = GdriveAPI.create_folder(folder_name=key, parent_folder=response_folder_id)
+
+                scripts = []
+                for each_id in val.get("ids"):
+                    file_df = merge_process_df[(merge_process_df['Folder_ID'] == each_id)]
+                    if file_df.shape[0] >0:
+                        scripts.append(f'Delete from merge_process where Folder_ID = "{each_id}"')
+                    GdriveAPI.move_file(file_id=each_id, new_folder_id=folder_id)
+
+
+                scripts.append(f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
+                        values("{folder_id}", "{key}", True)''')
+                if "zip" in val.get("extensions"):
+                    has_zip = True
+                else:
+                    has_zip = False
+                scripts.append(f'''insert into merge_process
+                      values(null, curdate(), "{key}", "{folder_id}", "https://drive.google.com/file/d/{folder_id}", False, {has_zip}, False, False, False, False)
+                                                                           ''')
+
+                run_sql_scripts(engine=engine, scripts=scripts)
+            else:
+                print_color(f'File is Single File will not move', color='r')
+                file_id = val.get("ids")[0]
+                file_extension = val.get("extensions")[0]
+                file_df = merge_process_df[(merge_process_df['Folder_ID'] == file_id)]
+                if file_extension != "zip":
+                    if file_df.shape[0] == 0:
+                        scripts = [f'''insert into merge_process
+                            values(null, curdate(), "{key}", "{file_id}", "https://drive.google.com/file/d/{file_id}", True, False, False, False, False, False)
+                            ''']
+                        run_sql_scripts(engine=engine, scripts=scripts)
+
+        # break
+
+
+
+    ''' PROCESS SINGLE ZIP FILES'''
+    all_files = GdriveAPI.get_files(folder_id=response_folder_id)
+    print_color(len(all_files), color='y')
+    all_files = [x for x in all_files if "Combined.pdf" not in x.get('name')]
+    for i, each_file in enumerate(all_files):
+        print_color(i, each_file, color='g')
+        core_file_name = ".".join(each_file.get("name").split(".")[:-1])
+        file_id = each_file.get("id")
+        file_extension = each_file.get("name").split(".")[-1].lower()
+        if core_file_name[-2:].strip() in numbers:
+            core_file_name = core_file_name[:-2]
+            print_color(core_file_name, color='r')
+            core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
+            if core_file_name in folder_dict.keys():
                 folder_dict[core_file_name].append(file_id)
             else:
                 folder_dict.update({core_file_name: [file_id]})
         else:
             core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
-            print_color(i, core_file_name, color='y')
-            folder_dict.update({core_file_name: [file_id]})
 
+        if file_extension == 'zip':
+            if core_file_name in patient_folders:
+                print_color(f'Folder Already Exists', color='y')
+                new_folder_id = existing_patient_folders.get(core_file_name)[0]
 
+                # for each_id in val:
+                GdriveAPI.move_file(file_id=file_id, new_folder_id=new_folder_id)
+                scripts = [f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null where Folder_ID="{new_folder_id}"']
+                run_sql_scripts(engine=engine, scripts=scripts)
+            else:
+                print_color(f'Folder Does Not Exists', color='r')
+                folder_id = GdriveAPI.create_folder(folder_name=core_file_name, parent_folder=response_folder_id)
 
-    # folder_dict = dict(sorted(folder_dict.items()))
-    # print_color(folder_dict, color='g')
-    #
-    # # new_folder_dict = {}
-    # # for key, val in folder_dict.items():
-    # #     if len(val) > 1:
-    # #         new_folder_dict.update({key:val})
-    # # print_color(new_folder_dict.keys(), color='y')
-    # ''' CORE NAME = DATE, LAST NAME, FIRST NAME'''
-    # ''' ONLY MOVE FILES THAT HAVE MORE THAN 1 FILE PER CORE NAME'''
-    # patient_folders = list(existing_patient_folders.keys())
-    # for key, val in folder_dict.items():
-    #     print_color(key, val, color='p')
-    #     if key in patient_folders:
-    #         print_color(f'Folder Already Exists', color='y')
-    #         parent_folder_id = existing_patient_folders.get(key)[0]
-    #         data = GdriveAPI.get_file_data(parent_folder_id)
-    #         print_color(data.get("parents")[0] , response_folder_id, color='g')
-    #         if data.get("parents")[0] != response_folder_id:
-    #            GdriveAPI.move_file(file_id=parent_folder_id, new_folder_id=response_folder_id)
-    #            scripts = [f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
-    #                            values("{parent_folder_id}", "{key}", True)''']
-    #            run_sql_scripts(engine=engine, scripts=scripts)
-    #
-    #         for each_id in val:
-    #             GdriveAPI.move_file(file_id=each_id, new_folder_id=parent_folder_id)
-    #         scripts = [f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null where Folder_ID="{parent_folder_id}"']
-    #         run_sql_scripts(engine=engine, scripts=scripts)
-    #     else:
-    #         if len(val) > 1:
-    #             print_color(f'Folder Does Not Exists', color='r')
-    #             folder_id = GdriveAPI.create_folder(folder_name=key, parent_folder=response_folder_id)
-    #             for each_id in val:
-    #                 GdriveAPI.move_file(file_id=each_id, new_folder_id=folder_id)
-    #             scripts = [f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
-    #                             values("{folder_id}", "{key}", True)''']
-    #             run_sql_scripts(engine=engine, scripts=scripts)
-    #
-    #
-    # ''' PROCESS SINGLE ZIP FILES'''
-    # all_files = GdriveAPI.get_files(folder_id=response_folder_id)
-    # print_color(len(all_files), color='y')
-    # all_files = [x for x in all_files if "Combined.pdf" not in x.get('name')]
-    # for i, each_file in enumerate(all_files):
-    #     print_color(i, each_file, color='g')
-    #     core_file_name = ".".join(each_file.get("name").split(".")[:-1])
-    #     file_id = each_file.get("id")
-    #     file_extension = each_file.get("name").split(".")[-1].lower()
-    #     if core_file_name[-2:].strip() in numbers:
-    #         core_file_name = core_file_name[:-2]
-    #         print_color(core_file_name, color='r')
-    #         core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
-    #         if core_file_name in folder_dict.keys():
-    #             folder_dict[core_file_name].append(file_id)
-    #         else:
-    #             folder_dict.update({core_file_name: [file_id]})
-    #     else:
-    #         core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
-    #
-    #     if file_extension == 'zip':
-    #         if core_file_name in patient_folders:
-    #             print_color(f'Folder Already Exists', color='y')
-    #             new_folder_id = existing_patient_folders.get(core_file_name)[0]
-    #
-    #             # for each_id in val:
-    #             GdriveAPI.move_file(file_id=file_id, new_folder_id=new_folder_id)
-    #             scripts = [f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null where Folder_ID="{new_folder_id}"']
-    #             run_sql_scripts(engine=engine, scripts=scripts)
-    #         else:
-    #             print_color(f'Folder Does Not Exists', color='r')
-    #             folder_id = GdriveAPI.create_folder(folder_name=core_file_name, parent_folder=response_folder_id)
-    #
-    #             GdriveAPI.move_file(file_id=file_id, new_folder_id=folder_id)
-    #             scripts = [f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
-    #                                   values("{folder_id}", "{core_file_name}", True)''']
-    #             run_sql_scripts(engine=engine, scripts=scripts)
-    #     else:
-    #         if core_file_name in patient_folders:
-    #             print_color(f'Folder Already Exists', color='y')
-    #             new_folder_id = existing_patient_folders.get(core_file_name)[0]
-    #
-    #             GdriveAPI.move_file(file_id=file_id, new_folder_id=new_folder_id)
-    #             scripts = [f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null  where Folder_ID="{new_folder_id}"']
-    #             run_sql_scripts(engine=engine, scripts=scripts)
+                GdriveAPI.move_file(file_id=file_id, new_folder_id=folder_id)
+                scripts = [f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
+                                      values("{folder_id}", "{core_file_name}", True)''']
+                run_sql_scripts(engine=engine, scripts=scripts)
+        else:
+            if core_file_name in patient_folders:
+                print_color(f'Folder Already Exists', color='y')
+                new_folder_id = existing_patient_folders.get(core_file_name)[0]
+
+                GdriveAPI.move_file(file_id=file_id, new_folder_id=new_folder_id)
+                scripts = [f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null  where Folder_ID="{new_folder_id}"']
+                run_sql_scripts(engine=engine, scripts=scripts)
 
 
 def map_files_and_folders_to_google_drive(GdriveAPI, GsheetAPI, response_folder_id):
@@ -742,16 +779,19 @@ def merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, exten
 
 
 def process_open_folders(x, engine, GdriveAPI, response_folder_id):
-
+    numbers = number_list()
     file_export = f'{x.project_folder}\\Record Inputs'
     create_folder(file_export)
     extension_list = ["pdf", "docx", "doc", "png", "jpeg", "jpg"]
     df = pd.read_sql(f'''Select * from folders where (New_Files_Imported is null or New_Files_Imported = 1)
         and (PDF_File_Processed != 1 or PDF_File_Processed is null)
         and Folder_Name not in ("1 - Folders For Review With Alan", "Processed Inputs", "Doubt Files", "Old Reports")
-       -- and Folder_Name in ("2023.11.29, Rodriguez, Doreen")
+        and Folder_Name in ("2023.12.14, Dalbo, James")
         order by Folder_Name
     ''', con=engine)
+    merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
+
+
     print_color(df, color='r')
 
     for i in range(df.shape[0]):
@@ -761,6 +801,8 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
         zip_files_exists = df['Zip_Files_Exists'].iloc[i]
         zip_files_unzipped = df['Zip_Files_Unzipped'].iloc[i]
         pdf_file_processed = df['PDF_File_Processed'].iloc[i]
+
+
 
         export_folder_name =  f'{file_export}\\{folder_name}'
         create_folder(export_folder_name)
@@ -772,24 +814,59 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
         zip_files = [x for x in folder_files if "zip" in x.get("name").lower()]
         viewable_files = [x for x in folder_files if x.get("name").split(".")[-1].lower() in extension_list]
 
+        has_zip = True if len(zip_files) >0 else False
+
+        folder_ids = merge_process_df[(merge_process_df['Folder_ID'] == folder_id)]
+        if folder_ids.shape[0] >0:
+            scripts = [f'''update merge_process set  
+                Import_Date = curdate(),
+                Is_Single_File= False, 
+                Has_Zip_Files = {has_zip},
+                Zip_File_Unpacked = False, 
+                Index_Page_Created = False, 
+                File_Combined = False, 
+                File_Exists_in_Record_Input_Processed_Inputs = False
+                where Folder_ID ="{folder_id}"
+                ''']
+        else:
+            scripts = [f'''insert into merge_process
+                      values(null, curdate(), "{folder_name}", "{folder_id}", "https://drive.google.com/file/d/{folder_id}", False, {has_zip}, False, False, False, False)
+                                                                       ''']
+        run_sql_scripts(engine=engine, scripts=scripts)
 
 
-        # print_color(folder_files, color='y')
+        print_color(folder_files, color='y')
         print(f'Folder Count {len(folder_files)}' , f'Processed Folder Count {len(get_folder_sub_folders)}')
         if len(folder_files) == 0 and len(get_folder_sub_folders) == 0:
             GdriveAPI.delete_folder(folder_id=folder_id, folder_name=folder_name)
             scripts = []
             scripts.append(f'Delete from folders where Folder_ID = "{folder_id}"')
+            scripts.append(f'Delete from merge_process where Folder_ID = "{folder_id}"')
+
             run_sql_scripts(engine=engine, scripts=scripts)
 
         elif len(folder_files) == 1 and len(get_folder_sub_folders) == 0 and len(zip_files) ==0:
             '''MOVE FILE OUT AS SINGLE FILE / REMOVE FOLDER'''
             ''' RENAME FILE TO CORE LOGIC'''
-            file_id = folder_files[0].get("id")
+            each_file =  folder_files[0]
+
+            # core_file_name = ".".join(folder_name.split(".")[:-1])
+            file_id = each_file.get("id")
+            file_extension = each_file.get("name").split(".")[-1]
+            # if core_file_name[-2:].strip() in numbers:
+            #     core_file_name = core_file_name[:-2]
+            #     print_color(i, core_file_name, color='r')
+            #     core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
+            # else:
+            #     core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
+            print_color(folder_name, color='g')
+            new_file_name = f'{folder_name}.{file_extension}'
+            GdriveAPI.rename_file( file_id=file_id, new_file_name=new_file_name)
             GdriveAPI.move_file(file_id=file_id, new_folder_id=response_folder_id)
             GdriveAPI.delete_folder(folder_id=folder_id, folder_name=folder_name)
             scripts = []
             scripts.append(f'Delete from folders where Folder_ID = "{folder_id}"')
+            scripts.append(f'Delete from merge_process where Folder_ID = "{folder_id}"')
             run_sql_scripts(engine=engine, scripts=scripts)
 
         else:
@@ -836,6 +913,9 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
                 if file_extension == 'zip':
                     process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name,
                                       viewable_files)
+                    scripts = [f'''update merge_process set Zip_File_Unpacked = True where Folder_ID ="{folder_id}"
+                                   ''']
+                    run_sql_scripts(engine=engine, scripts=scripts)
                     # break
 
             '''Step 4 - For Files Already Process get file content'''
@@ -861,19 +941,20 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
             '''Step 8 - Get combined size of all unique files'''
             combined_files_size = get_file_size(sorted_files, extension_list)
 
-            '''Step 9 - Merge Files To one PDF'''
-            # print_color(len(sorted_files),color='y')
-            if combined_files_size > .80:
-                print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r')
-            else:
-                merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, extension_list, processed_folder_id,
-                             response_folder_id, folder_id)
+            # '''Step 9 - Merge Files To one PDF'''
+            # # print_color(len(sorted_files),color='y')
+            # if combined_files_size > .80:
+            #     print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r')
+            # else:
+            #     merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, extension_list, processed_folder_id,
+            #                  response_folder_id, folder_id)
+            #
+            #     scripts = []
+            #     scripts.append(f'Update folders set PDF_File_Processed = True, New_Files_Imported=null where Folder_ID = "{folder_id}"')
+            #
+            #     run_sql_scripts(engine=engine, scripts=scripts)
 
-                scripts = []
-                scripts.append(f'Update folders set PDF_File_Processed = True, New_Files_Imported=null where Folder_ID = "{folder_id}"')
-                run_sql_scripts(engine=engine, scripts=scripts)
-
-        # break
+        break
 
 
 def merge_files_to_pdf(x, environment):
@@ -914,15 +995,15 @@ def merge_files_to_pdf(x, environment):
     # '''MAP FOLDERS TO SQL'''
     # import_new_folders(engine_1, database_name, existing_patient_folders)
     # '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id,include_processed_folders=True)
-    '''MAP / MOVE NEW FILES IN RECORD INPUT'''
-    process_new_files(engine_1, GdriveAPI, response_folder_id, existing_patient_folders)
+    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id,include_processed_folders=True)
+    # '''MAP / MOVE NEW FILES IN RECORD INPUT'''
+    # process_new_files(engine_1, GdriveAPI, response_folder_id, existing_patient_folders)
     # '''MAP MERGE PROCESS TO GOOGLE SHEETS'''
     # map_files_and_folders_to_google_drive(GdriveAPI, GsheetAPI, response_folder_id)
 
 
-    # '''PROCESS FOLDERS THAT NEED TO BE MERGED TO A PDF'''
-    # process_open_folders(x, engine_1, GdriveAPI, response_folder_id)
+    '''PROCESS FOLDERS THAT NEED TO BE MERGED TO A PDF'''
+    process_open_folders(x, engine_1, GdriveAPI, response_folder_id)
 
 
 

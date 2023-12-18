@@ -73,12 +73,12 @@ class GoogleDriveAPI():
         while True:
             response = self.service.files().list(
                 q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.folder'",
-                fields='nextPageToken, files(id, name)',
+                fields='nextPageToken, files(id, name, trashed)',
                 pageToken=page_token
             ).execute()
 
             for file in response.get('files', []):
-                results.append({'id': file['id'], 'name': file['name']})
+                results.append({'id': file['id'], 'name': file['name'], 'trashed': file['trashed']})
 
             page_token = response.get('nextPageToken')
             if not page_token:
