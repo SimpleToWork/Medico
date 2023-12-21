@@ -74,6 +74,7 @@ class ProgramCredentials:
         self.stw_gsheet_dashboard_id = f['stw_gsheet_dashboard_id']
         self.stw_gsheet_dashboard_sheet_name = f['stw_gsheet_dashboard_sheet_name']
         self.stw_gsheet_gid = f['stw_gsheet_gid']
+        self.merge_gsheet_gid = f['merge_gsheet_gid']
 
         self.username = f['username']
         self.password = f['password']

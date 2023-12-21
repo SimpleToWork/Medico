@@ -7,6 +7,7 @@ import win32com.client
 import fitz
 import datetime
 from reportlab.pdfgen import canvas
+import getpass
 from docx2pdf import convert
 import pypandoc
 import pandas as pd
@@ -19,6 +20,8 @@ import pprint
 import time
 import shutil
 from docx import Document
+from pyhtml2pdf import converter
+
 
 
 def database_setup(engine, database_name):
@@ -56,7 +59,8 @@ def table_setup(engine):
         Zip_File_Unpacked boolean,
         Index_Page_Created boolean,
         File_Combined boolean,
-        File_Exists_in_Record_Input_Processed_Inputs boolean
+        Folder_Moved_To_Processed_Inputs boolean,
+        Folder_To_Large_To_Combine boolean
     )''')
 
 
@@ -101,6 +105,7 @@ def convert_doc_to_docx(doc_path, docx_path):
     doc.Close()
     word.Quit()
 
+
 def get_docx_page_count(file_path):
     'https://pandoc.org/installing.html'
     # if file_extension == 'doc':
@@ -124,18 +129,9 @@ def get_docx_page_count(file_path):
     return page_count
 
 
-def get_existing_patient_folders(GdriveAPI=None, response_folder_id=None, include_processed_folders=False):
-    sub_child_folders = GdriveAPI.get_child_folders(folder_id=response_folder_id)
-    print_color(sub_child_folders, color='r')
-    sub_child_folders = [x for x in sub_child_folders if x.get("trashed") is False]
-    # print_color(sub_child_folders, color='g')
+def get_existing_patient_folders(GdriveAPI=None, response_folder_id=None, sub_child_folders=None,
+                                 processed_folder_id=None, include_processed_folders=False):
 
-    processed_folder_id = None
-    for each_folder in sub_child_folders:
-        if each_folder.get("name") == 'Processed Inputs':
-            processed_folder_id = each_folder.get("id")
-            sub_child_folders.remove(each_folder)
-            break
 
     existing_patient_folders = {}
     for each_folder in sub_child_folders:
@@ -359,7 +355,7 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                 else:
                     has_zip = False
                 scripts.append(f'''insert into merge_process
-                      values(null, curdate(), "{key}", "{folder_id}", "https://drive.google.com/file/d/{folder_id}", False, {has_zip}, False, False, False, False)
+                      values(null, curdate(), "{key}", "{folder_id}", "https://drive.google.com/folder/d/{folder_id}", False, {has_zip}, False, False, False, False, False)
                                                                            ''')
 
                 run_sql_scripts(engine=engine, scripts=scripts)
@@ -371,7 +367,7 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                 if file_extension != "zip":
                     if file_df.shape[0] == 0:
                         scripts = [f'''insert into merge_process
-                            values(null, curdate(), "{key}", "{file_id}", "https://drive.google.com/file/d/{file_id}", True, False, False, False, False, False)
+                            values(null, curdate(), "{key}", "{file_id}", "https://drive.google.com/file/d/{file_id}", True, False, False, False, False, False, False)
                             ''']
                         run_sql_scripts(engine=engine, scripts=scripts)
 
@@ -380,6 +376,9 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
 
 
     ''' PROCESS SINGLE ZIP FILES'''
+
+    print_color(folder_dict, color='y')
+
     all_files = GdriveAPI.get_files(folder_id=response_folder_id)
     print_color(len(all_files), color='y')
     all_files = [x for x in all_files if "Combined.pdf" not in x.get('name')]
@@ -393,9 +392,10 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
             print_color(core_file_name, color='r')
             core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
             if core_file_name in folder_dict.keys():
-                folder_dict[core_file_name].append(file_id)
+                folder_dict[core_file_name]["ids"].append(file_id)
+                folder_dict[core_file_name]["extensions"].append(file_extension)
             else:
-                folder_dict.update({core_file_name: [file_id]})
+                folder_dict.update({core_file_name: {"ids":[file_id], "extensions": [file_extension]}})
         else:
             core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
 
@@ -426,47 +426,20 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                 run_sql_scripts(engine=engine, scripts=scripts)
 
 
-def map_files_and_folders_to_google_drive(GdriveAPI, GsheetAPI, response_folder_id):
-    # sheet_name = "Merged Files - Record Input"
-    # df = GsheetAPI.get_data_from_sheet(sheetname=sheet_name, range_name="A:K")
+def map_files_and_folders_to_google_drive(engine, GsheetAPI):
+    sheet_name = "Merged Files - Record Input"
+    df = pd.read_sql(f'Select * from merge_process', con=engine)
+    row_number = GsheetAPI.get_row_count(sheetname=sheet_name)
+    print_color(row_number, color='b')
+    df['Is_Single_File'] = df['Is_Single_File'].apply(lambda x: True if x == 1 else "")
+    df['Has_Zip_Files'] = df['Has_Zip_Files'].apply(lambda x: True if x == 1 else "")
+    df['Zip_File_Unpacked'] = df['Zip_File_Unpacked'].apply(lambda x: True if x == 1 else "")
+    df['Index_Page_Created'] = df['Index_Page_Created'].apply(lambda x: True if x == 1 else "")
+    df['File_Combined'] = df['File_Combined'].apply(lambda x: True if x == 1 else "")
+    df['Folder_Moved_To_Processed_Inputs'] = df['Folder_Moved_To_Processed_Inputs'].apply(lambda x: True if x == 1 else "")
+    df['Folder_To_Large_To_Combine'] = df['Folder_To_Large_To_Combine'].apply( lambda x: True if x == 1 else "")
 
-    sub_child_folders = GdriveAPI.get_child_folders(folder_id=response_folder_id)
-
-    processed_folder_id = None
-    for each_folder in sub_child_folders:
-        if each_folder.get("name") == 'Processed Inputs':
-            processed_folder_id = each_folder.get("id")
-            sub_child_folders.remove(each_folder)
-            break
-
-    all_files = GdriveAPI.get_files(folder_id=response_folder_id)
-    print_color(len(all_files), color='y')
-    all_files= [x for x in all_files if "Combined.pdf" not in x.get('name')]
-
-    # row_number = GsheetAPI.get_row_count(sheetname=sheet_name)
-
-    single_file_data = []
-    for each_file in all_files:
-        print_color(each_file, color='g')
-        single_file_dict = {
-            "id": None,
-            "import_date": datetime.datetime.now().strftime("%Y-%m-%d"),
-            "folder_name":  each_file.get("name"),
-            "folder_id": each_file.get("id"),
-            "link_to_folder": f"https://drive.google.com/file/d/{each_file.get('id')}/",
-            "is_single_file": True,
-            "has_zip_files": False,
-            "zip_file_unpacked": False,
-            "index_page_created": False,
-            "file_combined": False,
-            "file_exists_in_record_input": False,
-
-
-        }
-        single_file_data.append(single_file_dict)
-        break
-
-
+    GsheetAPI.write_data_to_sheet(data=df,sheetname=sheet_name, row_number=2, include_headers=False, clear_data=True)
 
 
 
@@ -642,41 +615,105 @@ def get_file_size(sorted_files, extension_list):
     return combined_files_size
 
 
-def create_index(output_path, file_list):
-    index_content = "Index Page\n\n"
+def create_index(html_path, pdf_path, folder_name, file_list, excluded_file_list):
+    body = f"<h1>{folder_name}</h1><br>"
 
+    body += f'''<span style="color:Black;font-weight:Bold; text-indent: 20px">Combined files:</span><br>'''
+    body += f'<table>'
+
+    # index_content = "Index Page\n\n"
+    # # body += f'''<br><br><span style="color:Black;font-weight:Bold; ">Player Name:</span> {player_name}'''
     for i, file_info in enumerate(file_list):
-        file_name, start_page, page_count = file_info
+        file_name, start_page, page_count, size, created_time = file_info
+        print_color(created_time, color='b')
+        date = datetime.datetime.fromisoformat(created_time.replace("Z", "+00:00")).strftime("%m/%d/%Y")
+        adjusted_size = round(bytes_to_gb(int(size)) * 1000,2)
         if start_page+2 == start_page +page_count +1:
-            index_content += f"{i + 1}) {file_name}     -   Page {start_page + 2}\n"
+            body += f'''<tr>
+              <td style="font-weight:bold; vertical-align: text-top; width: 30px; text-indent: 10px">{i+1}.</td>
+              <td style="font-weight:bold; vertical-align: text-top; width: 150px">Page {start_page + 2}</td>
+              <td style="vertical-align: text-top; width: 400px">{file_name}</td>
+              <td style="vertical-align: text-top; width: 50px">{adjusted_size} MB</td>
+              <td style="vertical-align: text-top; width: 100px">{date}</td>
+              </tr>'''
+
         else:
-            index_content += f"{i + 1}) {file_name}   -   Pages {start_page+2}-{start_page +page_count +1 }\n"
+            body += f'''<tr>
+           <td style="font-weight:bold; vertical-align: text-top; width: 50px; text-indent: 30px">{i+1}.</td>
+           <td style="font-weight:bold; vertical-align: text-top; width: 150px;"> Pages {start_page+2}-{start_page +page_count +1 }</td>
+           <td style="vertical-align: text-top; width: 400px">{file_name}</td>
+           <td style="vertical-align: text-top; width: 100px">{adjusted_size} MB</td>
+           <td style="vertical-align: text-top; width: 100px">{date}</td>
+           </tr>'''
 
-    print_color(index_content, color='y')
+    body += f'''<tr>
+             <td style="font-weight:bold; vertical-align: text-top; width: 50px; text-indent: 30px"></td>
+        </tr><tr> 
+        <td style="font-weight:bold; vertical-align: text-top; width: 50px; text-indent: 30px"> {len(file_list)}</td>
+        <td style="font-weight:bold; vertical-align: text-top; width: 150px;">Combined Files</td>
+        <td style="font-weight:bold; vertical-align: text-top; width: 400px;">Total Pages {start_page +page_count +1}</td>
+    </tr>'''
+    body += f'</table>'
 
-    pdf_canvas = canvas.Canvas(output_path, pagesize=(612, 792))
-    pdf_canvas.setFont("Helvetica", 12)
+    body += f'''<br><br><span style="color:Black;font-weight:Bold; text-indent: 20px">Additional files:</span><br>'''
+    body += f'<table>'
+    for i, file_info in enumerate(excluded_file_list):
+        file_name, size, created_time = file_info
+        print_color(created_time, color='b')
+        date = datetime.datetime.fromisoformat(created_time.replace("Z", "+00:00")).strftime("%m/%d/%Y")
+        adjusted_size = round(bytes_to_gb(int(size)) * 1000, 2)
+        if start_page + 2 == start_page + page_count + 1:
+            body += f'''<tr>
+                <td style="font-weight:bold; vertical-align: text-top; width: 30px; text-indent: 10px">{i + 1}.</td>
+                  <td style="vertical-align: text-top; width: 150px"></td>
+                <td style="vertical-align: text-top; width: 400px">{file_name}</td>
+                <td style="vertical-align: text-top; width: 50px">{adjusted_size} MB</td>
+                <td style="vertical-align: text-top; width: 100px">{date}</td>
+                </tr>'''
 
-    lines = index_content.split("\n")
-
-    # Write text to the PDF with new lines
-    y_position = 735
-    for line in lines:
-        pdf_canvas.drawString(75, y_position, line)
-        y_position -= 15  # Adjust the vertical position for the next line
-
-
-    # pdf_canvas.drawString(100, 750, index_content)
-
-    # Save the PDF
-    pdf_canvas.save()
-
-    # pdf_writer.add_page(page=(0))
-    # index_page = pdf_writer.getPage(pdf_writer.getNumPages() - 1)
-    # index_page.mergePage(PyPDF2.PdfFileReader(index_content).getPage(0))
+        else:
+            body += f'''<tr>
+             <td style="font-weight:bold; vertical-align: text-top; width: 30px; text-indent: 30px">{i + 1}.</td>
+              <td style="vertical-align: text-top; width: 150px"></td>
+             <td style="vertical-align: text-top; width: 400px">{file_name}</td>
+             <td style="vertical-align: text-top; width: 100px">{adjusted_size} MB</td>
+             <td style="vertical-align: text-top; width: 100px">{date}</td>
+             </tr>'''
 
 
-def merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, extension_list,
+
+    if len(excluded_file_list) != 1:
+        body += f'''
+            <tr>
+             <td style="font-weight:bold; vertical-align: text-top; width: 50px; text-indent: 30px"></td>
+            </tr>
+            <tr> 
+                <td style="font-weight:bold; vertical-align: text-top; width: 50px; text-indent: 30px"> {len(excluded_file_list)}</td>
+                <td style="font-weight:bold; vertical-align: text-top; width: 150px;">Excluded Files</td>
+            </tr>'''
+
+    elif  len(excluded_file_list) == 1:
+        body += f'''
+            <tr>
+             <td style="font-weight:bold; vertical-align: text-top; width: 50px; text-indent: 30px"></td>
+            </tr><tr> 
+                <td style="font-weight:bold; vertical-align: text-top; width: 50px; text-indent: 30px"> {len(excluded_file_list)}</td>
+                <td style="font-weight:bold; vertical-align: text-top; width: 150px;">Excluded File</td>
+            </tr>'''
+    body += f'</table>'
+
+
+
+    with open(html_path, 'w') as f:
+        f.write(body)
+        f.close()
+
+    converter.convert(html_path, pdf_path)
+
+
+
+
+def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, export_folder_name, folder_name, extension_list,
                        processed_folder_id, response_folder_id, folder_id):
     pdf_writer = PyPDF2.PdfWriter()
     combined_pdf_file = f'{export_folder_name}\\{folder_name} Combined Draft.pdf'
@@ -697,6 +734,7 @@ def merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, exten
         core_file_name = each_file.get("core_file_name")
         file_extension = each_file.get("file_extension")
         size = each_file.get("size")
+        created_time =  each_file.get("created_time")
         if file_extension in extension_list:
             print_color(size, color='y')
             export_file_name = f'{export_folder_name}\\{file_name}'
@@ -739,14 +777,27 @@ def merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, exten
 
                 # merger.append(adjusted_export_file_name)
 
-                file_list.append((file_name, start_page, page_count))
+                file_list.append((file_name, start_page, page_count, size, created_time))
                 start_page += page_count
 
             GdriveAPI.move_file(file_id=file_id, new_folder_id=processed_folder_id)
 
-    index_path = f'{export_folder_name}\\index.pdf'
+    excluded_file_list = []
+    for each_file in excluded_files:
+        file_id = each_file.get("id")
+        file_name = each_file.get("name")
+        core_file_name = each_file.get("core_file_name")
+        file_extension = each_file.get("file_extension")
+        size = each_file.get("size")
+        created_time = each_file.get("created_time")
+        excluded_file_list.append((file_name, size, created_time))
 
-    create_index(index_path, file_list)
+
+    html_path = f'{export_folder_name}\\index.html'
+    pdf_path = f'{export_folder_name}\\index.pdf'
+
+    create_index(html_path, pdf_path, folder_name, file_list, excluded_file_list)
+
 
 
     print_color(merger, color='y')
@@ -756,7 +807,7 @@ def merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, exten
     merger.close()
 
     new_merger = PdfMerger()
-    new_merger.append(index_path)
+    new_merger.append(pdf_path)
     new_merger.append(combined_pdf_file)
     new_merger.write(final_combined_pdf_file)
     new_merger.close()
@@ -778,7 +829,7 @@ def merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, exten
 
 
 
-def process_open_folders(x, engine, GdriveAPI, response_folder_id):
+def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, processed_inputs_folder_id):
     numbers = number_list()
     file_export = f'{x.project_folder}\\Record Inputs'
     create_folder(file_export)
@@ -786,7 +837,7 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
     df = pd.read_sql(f'''Select * from folders where (New_Files_Imported is null or New_Files_Imported = 1)
         and (PDF_File_Processed != 1 or PDF_File_Processed is null)
         and Folder_Name not in ("1 - Folders For Review With Alan", "Processed Inputs", "Doubt Files", "Old Reports")
-        and Folder_Name in ("2023.12.14, Dalbo, James")
+--         and Folder_Name in ("2023.12.19 Chavez-Garcia, Alejandra")
         order by Folder_Name
     ''', con=engine)
     merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
@@ -801,8 +852,6 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
         zip_files_exists = df['Zip_Files_Exists'].iloc[i]
         zip_files_unzipped = df['Zip_Files_Unzipped'].iloc[i]
         pdf_file_processed = df['PDF_File_Processed'].iloc[i]
-
-
 
         export_folder_name =  f'{file_export}\\{folder_name}'
         create_folder(export_folder_name)
@@ -825,12 +874,12 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
                 Zip_File_Unpacked = False, 
                 Index_Page_Created = False, 
                 File_Combined = False, 
-                File_Exists_in_Record_Input_Processed_Inputs = False
+                Folder_Moved_To_Processed_Inputs = False
                 where Folder_ID ="{folder_id}"
                 ''']
         else:
             scripts = [f'''insert into merge_process
-                      values(null, curdate(), "{folder_name}", "{folder_id}", "https://drive.google.com/file/d/{folder_id}", False, {has_zip}, False, False, False, False)
+                      values(null, curdate(), "{folder_name}", "{folder_id}", "https://drive.google.com/file/d/{folder_id}", False, {has_zip}, False, False, False, False, False)
                                                                        ''']
         run_sql_scripts(engine=engine, scripts=scripts)
 
@@ -849,16 +898,9 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
             '''MOVE FILE OUT AS SINGLE FILE / REMOVE FOLDER'''
             ''' RENAME FILE TO CORE LOGIC'''
             each_file =  folder_files[0]
-
-            # core_file_name = ".".join(folder_name.split(".")[:-1])
             file_id = each_file.get("id")
             file_extension = each_file.get("name").split(".")[-1]
-            # if core_file_name[-2:].strip() in numbers:
-            #     core_file_name = core_file_name[:-2]
-            #     print_color(i, core_file_name, color='r')
-            #     core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
-            # else:
-            #     core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
+
             print_color(folder_name, color='g')
             new_file_name = f'{folder_name}.{file_extension}'
             GdriveAPI.rename_file( file_id=file_id, new_file_name=new_file_name)
@@ -913,8 +955,7 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
                 if file_extension == 'zip':
                     process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name,
                                       viewable_files)
-                    scripts = [f'''update merge_process set Zip_File_Unpacked = True where Folder_ID ="{folder_id}"
-                                   ''']
+                    scripts = [f'''update merge_process set Zip_File_Unpacked = True where Folder_ID ="{folder_id}" ''']
                     run_sql_scripts(engine=engine, scripts=scripts)
                     # break
 
@@ -932,6 +973,7 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
             '''Step 6 - Combine Processed and Unprocessed Files'''
             folder_files = folder_files + processed_folder_files
             folder_files = [x for x in folder_files if x.get("trashed") == False]
+            excluded_files = [x for x in folder_files if x.get("file_extension") not in extension_list]
             folder_files = [x for x in folder_files if x.get("file_extension") in extension_list]
             print_color(len(folder_files), color='y')
 
@@ -941,20 +983,31 @@ def process_open_folders(x, engine, GdriveAPI, response_folder_id):
             '''Step 8 - Get combined size of all unique files'''
             combined_files_size = get_file_size(sorted_files, extension_list)
 
-            # '''Step 9 - Merge Files To one PDF'''
-            # # print_color(len(sorted_files),color='y')
-            # if combined_files_size > .80:
-            #     print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r')
-            # else:
-            #     merge_to_pdf(GdriveAPI, sorted_files, export_folder_name, folder_name, extension_list, processed_folder_id,
-            #                  response_folder_id, folder_id)
-            #
-            #     scripts = []
-            #     scripts.append(f'Update folders set PDF_File_Processed = True, New_Files_Imported=null where Folder_ID = "{folder_id}"')
-            #
-            #     run_sql_scripts(engine=engine, scripts=scripts)
+            '''Step 9 - Merge Files To one PDF'''
+            # print_color(len(sorted_files),color='y')
+            if combined_files_size > .80:
+                print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r')
+                scripts = [f'''update merge_process set Folder_To_Large_To_Combine = True where Folder_ID ="{folder_id}" ''']
+                run_sql_scripts(engine=engine, scripts=scripts)
+            else:
+                merge_to_pdf(GdriveAPI, sorted_files, excluded_files, export_folder_name, folder_name, extension_list, processed_folder_id,
+                             response_folder_id, folder_id)
+                print_color(folder_id, color='g')
+                print_color(processed_inputs_folder_id, color='g')
 
-        break
+                GdriveAPI.move_file(file_id=folder_id, new_folder_id=processed_inputs_folder_id)
+
+                scripts = []
+                scripts.append(f'Update folders set PDF_File_Processed = True, New_Files_Imported=null where Folder_ID = "{folder_id}"')
+                scripts.append(f'''update merge_process set
+                    Index_Page_Created=True,
+                    File_Combined = True,
+                    Folder_Moved_To_Processed_Inputs = True
+                    where Folder_ID ="{folder_id}"''')
+                run_sql_scripts(engine=engine, scripts=scripts)
+            '''Step 10 - Update Google Sheet'''
+            map_files_and_folders_to_google_drive(engine, GsheetAPI)
+        # break
 
 
 def merge_files_to_pdf(x, environment):
@@ -978,36 +1031,43 @@ def merge_files_to_pdf(x, environment):
             response_folder_id = each_folder.get("id")
             break
 
+    sub_child_folders = GdriveAPI.get_child_folders(folder_id=response_folder_id)
+    print_color(sub_child_folders, color='r')
+    sub_child_folders = [x for x in sub_child_folders if x.get("trashed") is False]
+    # print_color(sub_child_folders, color='g')
+
+    processed_folder_id = None
+    for each_folder in sub_child_folders:
+        if each_folder.get("name") == 'Processed Inputs':
+            processed_folder_id = each_folder.get("id")
+            sub_child_folders.remove(each_folder)
+            break
+
+
     print_color(response_folder_id, color='y')
+    print_color(processed_folder_id, color='y')
 
-    # '''GET DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id)
-    # print_color(len(existing_patient_folders), color='y')
-    # '''RENAME FOLDERS THAT ARE NOT FORMATTED PROPERLY'''
-    # rename_existing_folders(GdriveAPI, existing_patient_folders)
-    # '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, include_processed_folders=True)
-    # print_color(len(existing_patient_folders), color='y')
-    # '''MERGE FOLDERS THAT HAVE THE SAME NAME'''
-    # merge_existing_folders(GdriveAPI, existing_patient_folders, response_folder_id)
-    # '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id)
-    # '''MAP FOLDERS TO SQL'''
-    # import_new_folders(engine_1, database_name, existing_patient_folders)
-    # '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id,include_processed_folders=True)
-    # '''MAP / MOVE NEW FILES IN RECORD INPUT'''
-    # process_new_files(engine_1, GdriveAPI, response_folder_id, existing_patient_folders)
-    # '''MAP MERGE PROCESS TO GOOGLE SHEETS'''
-    # map_files_and_folders_to_google_drive(GdriveAPI, GsheetAPI, response_folder_id)
-
-
+    '''GET DICT OF ALL FOLDERS IN RECORD-INPUT'''
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
+    print_color(len(existing_patient_folders), color='y')
+    '''RENAME FOLDERS THAT ARE NOT FORMATTED PROPERLY'''
+    rename_existing_folders(GdriveAPI, existing_patient_folders)
+    '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
+    print_color(len(existing_patient_folders), color='y')
+    '''MERGE FOLDERS THAT HAVE THE SAME NAME'''
+    merge_existing_folders(GdriveAPI, existing_patient_folders, response_folder_id)
+    '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
+    '''MAP FOLDERS TO SQL'''
+    import_new_folders(engine_1, database_name, existing_patient_folders)
+    '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
+    '''MAP / MOVE NEW FILES IN RECORD INPUT'''
+    process_new_files(engine_1, GdriveAPI, response_folder_id, existing_patient_folders)
     '''PROCESS FOLDERS THAT NEED TO BE MERGED TO A PDF'''
-    process_open_folders(x, engine_1, GdriveAPI, response_folder_id)
-
-
-
-
+    process_open_folders(x, engine_1, GdriveAPI, GsheetAPI, response_folder_id, processed_folder_id)
+    '''MAP MERGE PROCESS TO GOOGLE SHEETS'''
 
 
 

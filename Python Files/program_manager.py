@@ -25,7 +25,7 @@ def run_program(environment, function_to_run):
         run_file_upload_process(x, environment)
     elif function_to_run == 'Merge Files':
         merge_files_to_pdf(x, environment)
-    # google_sheet_update(x, program_name="Medico", method=function_to_run)
+    google_sheet_update(x, program_name="Medico", method=function_to_run)
 
 
 if __name__ == '__main__':
