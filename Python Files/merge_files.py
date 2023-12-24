@@ -973,7 +973,7 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
             '''Step 6 - Combine Processed and Unprocessed Files'''
             folder_files = folder_files + processed_folder_files
             folder_files = [x for x in folder_files if x.get("trashed") == False]
-            excluded_files = [x for x in folder_files if x.get("file_extension") not in extension_list]
+            excluded_files = [x for x in folder_files if x.get("file_extension") not in extension_list and x.get("file_extension")  != "zip"]
             folder_files = [x for x in folder_files if x.get("file_extension") in extension_list]
             print_color(len(folder_files), color='y')
 
