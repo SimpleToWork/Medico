@@ -219,13 +219,18 @@ def email_doc_out(x, GmailAPI, file_name, date_of_report, attorney_name, attorne
     if  is_date(dob, fuzzy=False):
         dob = datetime.datetime.strptime(dob,"%Y-%m-%d").strftime('%m/%d/%Y')
     if is_date(doa, fuzzy=False):
-        doa = datetime.datetime.strptime(doa,"%Y-%m-%d").strftime('%m/%d/%Y')
+        print_color(parse(doa, fuzzy=False), color='g')
+        try:
+            doa = datetime.datetime.strptime(doa,"%Y-%m-%d").strftime('%m/%d/%Y')
+        except:
+            print_color(f'Could not convert DOA Date', color='y')
+            # doa
     if is_date(date_of_report, fuzzy=False):
         date_of_report = datetime.datetime.strptime(date_of_report, "%Y-%m-%d").strftime('%m/%d/%Y')
 
 
     email_body = \
-    f'''The report on your client has been completed and is attaced.
+    f'''The report on your client has been completed and is attached.
         <br><span style="color:Black;font-weight:Bold; ">DOB:</span> {dob}
         <br><span style="color:Black;font-weight:Bold; ">DOA:</span> {doa}
         <br><span style="color:Black;font-weight:Bold; ">Date of Report: </span> {date_of_report}
