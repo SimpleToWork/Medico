@@ -476,7 +476,7 @@ def unpack_child_folders(GdriveAPI, parent_folder, processed_folder_id, child_fo
             GdriveAPI.move_file( file_id=child_folder_id, new_folder_id=processed_folder_id)
 
 
-def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name, viewable_files):
+def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name, viewable_files, folder_files):
     numbers = number_list()
     print_color(f'Run Zip Process', color='y')
     print_color(file_name, color='r')
@@ -494,7 +494,7 @@ def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, fi
         core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
 
     print_color(number_assignment, color='p')
-    existing_files = [x.get("name") for x in viewable_files]
+    existing_files = [x.get("name") for x in folder_files]
     print_color(existing_files, color='y')
 
     GdriveAPI.download_file(file_id=file_id, file_name=extended_file_name)
@@ -538,7 +538,7 @@ def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, fi
             shutil.rmtree(f'{extended_unzipped_folder}\\{each_item}')
 
     extracted_files = os.listdir(extended_unzipped_folder)
-    for each_unzipped_file in extracted_files:
+    for i, each_unzipped_file in enumerate(extracted_files):
         file_path = f'{extended_unzipped_folder}\\{each_unzipped_file}'
         extension = each_unzipped_file.split(".")[-1]
         if number_assignment is not None:
@@ -869,169 +869,174 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
     print_color(df, color='r')
 
     for i in range(df.shape[0]):
-        folder_id = df['Folder_ID'].iloc[i]
-        folder_name = df['Folder_Name'].iloc[i].strip()
-        new_files_imported = df['New_Files_Imported'].iloc[i]
-        zip_files_exists = df['Zip_Files_Exists'].iloc[i]
-        zip_files_unzipped = df['Zip_Files_Unzipped'].iloc[i]
-        pdf_file_processed = df['PDF_File_Processed'].iloc[i]
+        try:
+            folder_id = df['Folder_ID'].iloc[i]
+            folder_name = df['Folder_Name'].iloc[i].strip()
+            new_files_imported = df['New_Files_Imported'].iloc[i]
+            zip_files_exists = df['Zip_Files_Exists'].iloc[i]
+            zip_files_unzipped = df['Zip_Files_Unzipped'].iloc[i]
+            pdf_file_processed = df['PDF_File_Processed'].iloc[i]
 
-        export_folder_name =  f'{file_export}\\{folder_name}'
-        create_folder(export_folder_name)
+            export_folder_name =  f'{file_export}\\{folder_name}'
+            create_folder(export_folder_name)
 
-        print_color(f'{i}/{df.shape[0]} Getting files for {folder_id}: {folder_name}')
-        folder_files = GdriveAPI.get_files(folder_id)
-        get_folder_sub_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
-        folder_files = [x for x in folder_files if x.get("trashed") == False]
-        zip_files = [x for x in folder_files if "zip" in x.get("name").lower()]
-        viewable_files = [x for x in folder_files if x.get("name").split(".")[-1].lower() in extension_list]
-
-        has_zip = True if len(zip_files) >0 else False
-
-        folder_ids = merge_process_df[(merge_process_df['Folder_ID'] == folder_id)]
-        if folder_ids.shape[0] >0:
-            scripts = [f'''update merge_process set  
-                Import_Date = curdate(),
-                Is_Single_File= False, 
-                Has_Zip_Files = {has_zip},
-                Zip_File_Unpacked = False, 
-                Index_Page_Created = False, 
-                File_Combined = False, 
-                Folder_Moved_To_Processed_Inputs = False
-                where Folder_ID ="{folder_id}"
-                ''']
-        else:
-            scripts = [f'''insert into merge_process
-                      values(null, curdate(), "{folder_name}", "{folder_id}", "https://drive.google.com/file/d/{folder_id}", False, {has_zip}, False, False, False, False, False)
-                                                                       ''']
-        run_sql_scripts(engine=engine, scripts=scripts)
-
-
-        print_color(folder_files, color='y')
-        print(f'Folder Count {len(folder_files)}' , f'Processed Folder Count {len(get_folder_sub_folders)}')
-        if len(folder_files) == 0 and len(get_folder_sub_folders) == 0:
-            GdriveAPI.delete_folder(folder_id=folder_id, folder_name=folder_name)
-            scripts = []
-            scripts.append(f'Delete from folders where Folder_ID = "{folder_id}"')
-            scripts.append(f'Delete from merge_process where Folder_ID = "{folder_id}"')
-
-            run_sql_scripts(engine=engine, scripts=scripts)
-
-        elif len(folder_files) == 1 and len(get_folder_sub_folders) == 0 and len(zip_files) ==0:
-            '''MOVE FILE OUT AS SINGLE FILE / REMOVE FOLDER'''
-            ''' RENAME FILE TO CORE LOGIC'''
-            each_file =  folder_files[0]
-            file_id = each_file.get("id")
-            file_extension = each_file.get("name").split(".")[-1]
-
-            print_color(folder_name, color='g')
-            new_file_name = f'{folder_name}.{file_extension}'
-            GdriveAPI.rename_file( file_id=file_id, new_file_name=new_file_name)
-            GdriveAPI.move_file(file_id=file_id, new_folder_id=response_folder_id)
-            GdriveAPI.delete_folder(folder_id=folder_id, folder_name=folder_name)
-            scripts = []
-            scripts.append(f'Delete from folders where Folder_ID = "{folder_id}"')
-            scripts.append(f'Delete from merge_process where Folder_ID = "{folder_id}"')
-            run_sql_scripts(engine=engine, scripts=scripts)
-
-        else:
-            print_color(folder_files, color='y')
-            '''Step 1 - Check if there are files that we already processed'''
-            '''Step 2 - Check if there are folders in the folder. If so unpack files into main folder'''
-
-            '''Step 3 - Unzip any Zip Files *'''
-            '''Step 4 - For Files Already Process get file content'''
-            '''Step 5 - Get Files from Original Folder with New Zipped Files'''
-            '''Step 6 - Combine Processed and Unprocessed Files'''
-            '''Step 7 - Sort File By Create Date'''
-            '''Step 8 - Get Combined File Size'''
-            '''Step 9 - Merge Files To one PDF
-                      - Create Index Page'''
-            '''       - Move Files to "Processed Folder"'''
-
-            '''Step 1 - Check if there are files that we already processed'''
-            processed_folder_id = None
-            child_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
-            for each_folder in child_folders:
-                if "Processed Files" in each_folder.get("name"):
-                    processed_folder_id = each_folder.get("id")
-                    break
-
-            if processed_folder_id is None:
-                processed_folder_id = GdriveAPI.create_folder(folder_name='Processed Files', parent_folder=folder_id)
-
-
-            '''Step 2 - Check if there are folders in the folder. If so unpack files into main folder'''
-            additional_child_folders = [x for x in child_folders if x.get("name") != 'Processed Files']
-            print_color(additional_child_folders, color='y')
-            unpack_child_folders(GdriveAPI=GdriveAPI, parent_folder=folder_id, processed_folder_id=processed_folder_id,
-                                 child_folders=additional_child_folders)
-
-            '''Step 3 - Unzip any Zip Files *'''
-            for each_file in folder_files:
-                file_extension = each_file.get("file_extension")
-                file_id = each_file.get("id")
-                # pprint.pprint(GdriveAPI.get_file_data(file_id))
-                file_name = each_file.get("name")
-                extended_file_name = f'{file_export}\\{file_name}'
-                print_color(each_file, color='g')
-                if file_extension == 'zip':
-                    process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name,
-                                      viewable_files)
-
-                    scripts = [f'''update merge_process set Zip_File_Unpacked = True where Folder_ID ="{folder_id}" ''']
-                    run_sql_scripts(engine=engine, scripts=scripts)
-
-
-            '''Step 4 - For Files Already Process get file content'''
-            processed_folder_files = GdriveAPI.get_files(processed_folder_id)
-            processed_folder_files = [x for x in processed_folder_files if x.get("trashed") == False]
-
-            '''Step 5 - Get Files from Original Folder with New Zipped Files'''
+            print_color(f'{i}/{df.shape[0]} Getting files for {folder_id}: {folder_name}')
             folder_files = GdriveAPI.get_files(folder_id)
+            get_folder_sub_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
             folder_files = [x for x in folder_files if x.get("trashed") == False]
-            print_color(folder_files, color='b')
-            if len(folder_files) ==0 and len(processed_folder_files) ==0 :
-                print_color(f'No New Files to Process', color='r')
-                break
-            '''Step 6 - Combine Processed and Unprocessed Files'''
-            folder_files = folder_files + processed_folder_files
-            folder_files = [x for x in folder_files if x.get("trashed") == False]
-            excluded_files = [x for x in folder_files if x.get("file_extension") not in extension_list and x.get("file_extension")  != "zip"]
-            folder_files = [x for x in folder_files if x.get("file_extension") in extension_list]
-            print_color(len(folder_files), color='y')
+            zip_files = [x for x in folder_files if "zip" in x.get("name").lower()]
+            viewable_files = [x for x in folder_files if x.get("name").split(".")[-1].lower() in extension_list]
 
-            '''Step 7 - Sort File By File Number - Create Date'''
-            sorted_files = sort_files(folder_files)
+            has_zip = True if len(zip_files) >0 else False
 
-            '''Step 8 - Get combined size of all unique files'''
-            combined_files_size = get_file_size(sorted_files, extension_list)
-
-            '''Step 9 - Merge Files To one PDF'''
-            # print_color(len(sorted_files),color='y')
-            if combined_files_size > .80:
-                print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r')
-                scripts = [f'''update merge_process set Folder_To_Large_To_Combine = True where Folder_ID ="{folder_id}" ''']
-                run_sql_scripts(engine=engine, scripts=scripts)
+            folder_ids = merge_process_df[(merge_process_df['Folder_ID'] == folder_id)]
+            if folder_ids.shape[0] >0:
+                scripts = [f'''update merge_process set  
+                    Import_Date = curdate(),
+                    Is_Single_File= False, 
+                    Has_Zip_Files = {has_zip},
+                    Zip_File_Unpacked = False, 
+                    Index_Page_Created = False, 
+                    File_Combined = False, 
+                    Folder_Moved_To_Processed_Inputs = False
+                    where Folder_ID ="{folder_id}"
+                    ''']
             else:
-                merge_to_pdf(GdriveAPI, sorted_files, excluded_files, export_folder_name, folder_name, extension_list, processed_folder_id,
-                             response_folder_id, folder_id)
-                print_color(folder_id, color='g')
-                print_color(processed_inputs_folder_id, color='g')
+                scripts = [f'''insert into merge_process
+                          values(null, curdate(), "{folder_name}", "{folder_id}", "https://drive.google.com/file/d/{folder_id}", False, {has_zip}, False, False, False, False, False)
+                                                                           ''']
+            run_sql_scripts(engine=engine, scripts=scripts)
 
-                GdriveAPI.move_file(file_id=folder_id, new_folder_id=processed_inputs_folder_id)
 
+            print_color(folder_files, color='y')
+            print(f'Folder Count {len(folder_files)}' , f'Processed Folder Count {len(get_folder_sub_folders)}')
+            if len(folder_files) == 0 and len(get_folder_sub_folders) == 0:
+                GdriveAPI.delete_folder(folder_id=folder_id, folder_name=folder_name)
                 scripts = []
-                scripts.append(f'Update folders set PDF_File_Processed = True, New_Files_Imported=null where Folder_ID = "{folder_id}"')
-                scripts.append(f'''update merge_process set
-                    Index_Page_Created=True,
-                    File_Combined = True,
-                    Folder_Moved_To_Processed_Inputs = True
-                    where Folder_ID ="{folder_id}"''')
+                scripts.append(f'Delete from folders where Folder_ID = "{folder_id}"')
+                scripts.append(f'Delete from merge_process where Folder_ID = "{folder_id}"')
+
                 run_sql_scripts(engine=engine, scripts=scripts)
-            '''Step 10 - Update Google Sheet'''
-            map_files_and_folders_to_google_drive(engine, GsheetAPI)
-        # break
+
+            elif len(folder_files) == 1 and len(get_folder_sub_folders) == 0 and len(zip_files) ==0:
+                '''MOVE FILE OUT AS SINGLE FILE / REMOVE FOLDER'''
+                ''' RENAME FILE TO CORE LOGIC'''
+                each_file =  folder_files[0]
+                file_id = each_file.get("id")
+                file_extension = each_file.get("name").split(".")[-1]
+
+                print_color(folder_name, color='g')
+                new_file_name = f'{folder_name}.{file_extension}'
+                GdriveAPI.rename_file( file_id=file_id, new_file_name=new_file_name)
+                GdriveAPI.move_file(file_id=file_id, new_folder_id=response_folder_id)
+                GdriveAPI.delete_folder(folder_id=folder_id, folder_name=folder_name)
+                scripts = []
+                scripts.append(f'Delete from folders where Folder_ID = "{folder_id}"')
+                scripts.append(f'Delete from merge_process where Folder_ID = "{folder_id}"')
+                run_sql_scripts(engine=engine, scripts=scripts)
+
+            else:
+                print_color(folder_files, color='y')
+                '''Step 1 - Check if there are files that we already processed'''
+                '''Step 2 - Check if there are folders in the folder. If so unpack files into main folder'''
+
+                '''Step 3 - Unzip any Zip Files *'''
+                '''Step 4 - For Files Already Process get file content'''
+                '''Step 5 - Get Files from Original Folder with New Zipped Files'''
+                '''Step 6 - Combine Processed and Unprocessed Files'''
+                '''Step 7 - Sort File By Create Date'''
+                '''Step 8 - Get Combined File Size'''
+                '''Step 9 - Merge Files To one PDF
+                          - Create Index Page'''
+                '''       - Move Files to "Processed Folder"'''
+
+                '''Step 1 - Check if there are files that we already processed'''
+                processed_folder_id = None
+                child_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
+                for each_folder in child_folders:
+                    if "Processed Files" in each_folder.get("name"):
+                        processed_folder_id = each_folder.get("id")
+                        break
+
+                if processed_folder_id is None:
+                    processed_folder_id = GdriveAPI.create_folder(folder_name='Processed Files', parent_folder=folder_id)
+
+
+                '''Step 2 - Check if there are folders in the folder. If so unpack files into main folder'''
+                additional_child_folders = [x for x in child_folders if x.get("name") != 'Processed Files']
+                print_color(additional_child_folders, color='y')
+                unpack_child_folders(GdriveAPI=GdriveAPI, parent_folder=folder_id, processed_folder_id=processed_folder_id,
+                                     child_folders=additional_child_folders)
+
+                '''Step 3 - Unzip any Zip Files *'''
+                for each_file in folder_files:
+                    file_extension = each_file.get("file_extension")
+                    file_id = each_file.get("id")
+                    # pprint.pprint(GdriveAPI.get_file_data(file_id))
+                    file_name = each_file.get("name")
+                    extended_file_name = f'{file_export}\\{file_name}'
+                    print_color(each_file, color='g')
+                    if file_extension == 'zip':
+                        process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name,
+                                          viewable_files, folder_files)
+
+                        scripts = [f'''update merge_process set Zip_File_Unpacked = True where Folder_ID ="{folder_id}" ''']
+                        run_sql_scripts(engine=engine, scripts=scripts)
+
+
+                '''Step 4 - For Files Already Process get file content'''
+                processed_folder_files = GdriveAPI.get_files(processed_folder_id)
+                processed_folder_files = [x for x in processed_folder_files if x.get("trashed") == False]
+
+                '''Step 5 - Get Files from Original Folder with New Zipped Files'''
+                folder_files = GdriveAPI.get_files(folder_id)
+                folder_files = [x for x in folder_files if x.get("trashed") == False]
+                print_color(folder_files, color='b')
+                if len(folder_files) ==0 and len(processed_folder_files) ==0 :
+                    print_color(f'No New Files to Process', color='r')
+                    break
+                '''Step 6 - Combine Processed and Unprocessed Files'''
+                folder_files = folder_files + processed_folder_files
+                folder_files = [x for x in folder_files if x.get("trashed") == False]
+                excluded_files = [x for x in folder_files if x.get("file_extension") not in extension_list and x.get("file_extension")  != "zip"]
+                folder_files = [x for x in folder_files if x.get("file_extension") in extension_list]
+                print_color(len(folder_files), color='y')
+
+                '''Step 7 - Sort File By File Number - Create Date'''
+                sorted_files = sort_files(folder_files)
+
+                '''Step 8 - Get combined size of all unique files'''
+                combined_files_size = get_file_size(sorted_files, extension_list)
+
+                '''Step 9 - Merge Files To one PDF'''
+                # print_color(len(sorted_files),color='y')
+                if combined_files_size > .80:
+                    print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r')
+                    scripts = [f'''update merge_process set Folder_To_Large_To_Combine = True where Folder_ID ="{folder_id}" ''']
+                    run_sql_scripts(engine=engine, scripts=scripts)
+                else:
+                    merge_to_pdf(GdriveAPI, sorted_files, excluded_files, export_folder_name, folder_name, extension_list, processed_folder_id,
+                                 response_folder_id, folder_id)
+                    print_color(folder_id, color='g')
+                    print_color(processed_inputs_folder_id, color='g')
+
+                    GdriveAPI.move_file(file_id=folder_id, new_folder_id=processed_inputs_folder_id)
+
+                    scripts = []
+                    scripts.append(f'Update folders set PDF_File_Processed = True, New_Files_Imported=null where Folder_ID = "{folder_id}"')
+                    scripts.append(f'''update merge_process set
+                        Index_Page_Created=True,
+                        File_Combined = True,
+                        Folder_Moved_To_Processed_Inputs = True
+                        where Folder_ID ="{folder_id}"''')
+                    run_sql_scripts(engine=engine, scripts=scripts)
+                '''Step 10 - Update Google Sheet'''
+                map_files_and_folders_to_google_drive(engine, GsheetAPI)
+        except:
+            print_color(f'Could not process file', color='r')
+
+
+    # break
 
 
 def merge_files_to_pdf(x, environment):
