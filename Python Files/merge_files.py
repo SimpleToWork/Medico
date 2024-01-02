@@ -500,19 +500,42 @@ def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, fi
     GdriveAPI.download_file(file_id=file_id, file_name=extended_file_name)
 
     extended_unzipped_folder = f'{file_export}\\{".".join(file_name.split(".")[:-1])} unzipped'
+    print_color(extended_unzipped_folder, color='y')
     create_folder(extended_unzipped_folder)
 
+    check_zip_files = os.listdir(extended_unzipped_folder)
+    print_color(check_zip_files, color='p')
+    extension_list = ["pdf"]
     with zipfile.ZipFile(extended_file_name, 'r') as z:
         # Replace 'extracted_folder_id' with the desired folder ID for the extracted contents
-        z.extractall(extended_unzipped_folder)
+        for i, filename in enumerate(z.namelist()):
+            sanitized_name = filename.replace(':', '_').replace("/","\\").strip()
+            if " \\" in sanitized_name:
+                sanitized_name =  sanitized_name.replace(" \\","\\")
+            extracted_path = os.path.join(extended_unzipped_folder, sanitized_name)
+
+            normalized_path = os.path.normpath(extracted_path.rstrip())
+            print_color(normalized_path, color='b')
+            paths_to_create = normalized_path.split(extended_unzipped_folder)[-1].split("\\")[1:-1]
+            for i in range(len(paths_to_create)):
+                crate_path = "\\".join(paths_to_create[:i+1])
+                create_folder(f'{extended_unzipped_folder}\\{crate_path}')
+            # z.extract( file_info.filename, extended_unzipped_folder)
+            if sanitized_name[-1] == "\\":
+                create_folder(sanitized_name)
+            else:
+                with z.open(filename) as source, open(normalized_path, 'wb') as target:
+                    shutil.copyfileobj(source, target)
+
+    #     z.extractall(extended_unzipped_folder)
         print_color(f'Files Unzipped into {extended_unzipped_folder}', color='b')
 
-        move_files_to_parent_folder(extended_unzipped_folder)
-        extracted_files = os.listdir(extended_unzipped_folder)
-        print_color(extracted_files, color='y')
-        for each_item in extracted_files:
-            if os.path.isdir(f'{extended_unzipped_folder}\\{each_item}'):
-                shutil.rmtree(f'{extended_unzipped_folder}\\{each_item}')
+    move_files_to_parent_folder(extended_unzipped_folder)
+    extracted_files = os.listdir(extended_unzipped_folder)
+    print_color(extracted_files, color='y')
+    for each_item in extracted_files:
+        if os.path.isdir(f'{extended_unzipped_folder}\\{each_item}'):
+            shutil.rmtree(f'{extended_unzipped_folder}\\{each_item}')
 
     extracted_files = os.listdir(extended_unzipped_folder)
     for each_unzipped_file in extracted_files:
@@ -955,9 +978,10 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
                 if file_extension == 'zip':
                     process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name,
                                       viewable_files)
+
                     scripts = [f'''update merge_process set Zip_File_Unpacked = True where Folder_ID ="{folder_id}" ''']
                     run_sql_scripts(engine=engine, scripts=scripts)
-                    # break
+
 
             '''Step 4 - For Files Already Process get file content'''
             processed_folder_files = GdriveAPI.get_files(processed_folder_id)
@@ -1048,23 +1072,23 @@ def merge_files_to_pdf(x, environment):
     print_color(processed_folder_id, color='y')
 
     '''GET DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
-    print_color(len(existing_patient_folders), color='y')
-    '''RENAME FOLDERS THAT ARE NOT FORMATTED PROPERLY'''
-    rename_existing_folders(GdriveAPI, existing_patient_folders)
-    '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
-    print_color(len(existing_patient_folders), color='y')
-    '''MERGE FOLDERS THAT HAVE THE SAME NAME'''
-    merge_existing_folders(GdriveAPI, existing_patient_folders, response_folder_id)
-    '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
-    '''MAP FOLDERS TO SQL'''
-    import_new_folders(engine_1, database_name, existing_patient_folders)
-    '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
-    '''MAP / MOVE NEW FILES IN RECORD INPUT'''
-    process_new_files(engine_1, GdriveAPI, response_folder_id, existing_patient_folders)
+    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
+    # print_color(len(existing_patient_folders), color='y')
+    # '''RENAME FOLDERS THAT ARE NOT FORMATTED PROPERLY'''
+    # rename_existing_folders(GdriveAPI, existing_patient_folders)
+    # '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
+    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
+    # print_color(len(existing_patient_folders), color='y')
+    # '''MERGE FOLDERS THAT HAVE THE SAME NAME'''
+    # merge_existing_folders(GdriveAPI, existing_patient_folders, response_folder_id)
+    # '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
+    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
+    # '''MAP FOLDERS TO SQL'''
+    # import_new_folders(engine_1, database_name, existing_patient_folders)
+    # '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
+    # existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
+    # '''MAP / MOVE NEW FILES IN RECORD INPUT'''
+    # process_new_files(engine_1, GdriveAPI, response_folder_id, existing_patient_folders)
     '''PROCESS FOLDERS THAT NEED TO BE MERGED TO A PDF'''
     process_open_folders(x, engine_1, GdriveAPI, GsheetAPI, response_folder_id, processed_folder_id)
     '''MAP MERGE PROCESS TO GOOGLE SHEETS'''
