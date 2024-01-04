@@ -21,7 +21,7 @@ import time
 import shutil
 from docx import Document
 from pyhtml2pdf import converter
-
+from PIL import Image
 
 
 def database_setup(engine, database_name):
@@ -104,6 +104,19 @@ def convert_doc_to_docx(doc_path, docx_path):
     doc.SaveAs(docx_path, FileFormat=16)  # 16 corresponds to .docx format
     doc.Close()
     word.Quit()
+
+
+
+def convert_image_to_pdf(image_path, output_pdf_path):
+    # Open the image file
+    img = Image.open(image_path)
+
+    # Convert the image to RGB if it's not already in that mode
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    # Save the image as PDF
+    img.save(output_pdf_path, 'PDF', resolution=100.0)
 
 
 def get_docx_page_count(file_path):
@@ -860,7 +873,7 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
 
     for each_file in sorted_files:
         file_id = each_file.get("id")
-        file_name = each_file.get("name")
+        file_name = each_file.get("name").replace(":","-")
         core_file_name = each_file.get("core_file_name")
         file_extension = each_file.get("file_extension")
         size = each_file.get("size")
@@ -897,7 +910,8 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
                     converted_export_file_name = f'{".".join(export_file_name.split(".")[:-1])}.pdf'
                     if file_extension in ['doc', 'docx']:
                         convert(export_file_name, converted_export_file_name)
-
+                    elif file_extension in ['jpg', 'jpeg', 'png']:
+                        convert_image_to_pdf(export_file_name, converted_export_file_name)
                     adjusted_export_file_name = converted_export_file_name
                 else:
                     adjusted_export_file_name = export_file_name
@@ -1121,6 +1135,7 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
             folder_files = [x for x in folder_files if x.get("trashed") == False]
             excluded_files = [x for x in folder_files if x.get("file_extension") not in extension_list and x.get("file_extension")  != "zip"]
             folder_files = [x for x in folder_files if x.get("file_extension").lower() in extension_list]
+            folder_files = [x for x in folder_files if not x.get("name").startswith("._")]
             print_color(len(folder_files), color='y')
             print_color(folder_files, color='y')
 

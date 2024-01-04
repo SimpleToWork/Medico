@@ -8,6 +8,7 @@ pandas
 crayons==0.4.0
 PyPDF2
 pypdf
+Pillow
 python-docx
 docx2txt
 docx2pdf
