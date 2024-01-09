@@ -12,6 +12,9 @@ import pandas as pd
 from sqlalchemy import create_engine, inspect
 import time
 import sqlalchemy
+
+import datetime
+
 class objdict(dict):
     def __getattr__(self, name):
         if name in self:
@@ -27,7 +30,6 @@ class objdict(dict):
             del self[name]
         else:
             raise AttributeError("No such attribute: " + name)
-import datetime
 
 class ProgramCredentials:
     def __init__(self, environment):
