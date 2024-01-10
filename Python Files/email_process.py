@@ -68,7 +68,7 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
         "file_name": file_name,
         "date_of_report": None,
         "attorney_name": None,
-        "attorney_email": None,
+        "attorney_email": [],
         "patient_name": None,
         "date_of_birth": None,
         "date_of_arrival": None,
@@ -130,8 +130,9 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
                 data_dict["date_of_arrival"] = [text.upper().replace("DOA","").replace("\t","").replace(":","").replace(",","\n").strip()]
             if "DOI" in text.upper() and data_dict["date_of_arrival"] is None:
                 data_dict["date_of_arrival"] = [text.upper().replace("DOI", "").replace("\t", "").replace(":", "").replace(",", "\n").strip()]
-            if "ESQ" in text.upper() and data_dict["attorney_name"] is None:
+            if "ESQ" in text.upper() and data_dict["attorney_name"] == []:
                 attorney_name = text.upper()
+                print_color(data_dict["attorney_name"], color='y')
                 data_dict["attorney_name"] = [attorney_name.replace("ESQ","").replace(".","").replace(",","").strip()]
             if attorney_name is None:
                 if first_line_text <= i <= 5:
@@ -140,11 +141,13 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
                     if text.upper() != "" and "draft" not in text.lower() and not  is_date(text.strip()):
 
                         attorney_name = text.upper()
-                        data_dict["attorney_name"] = [ attorney_name.replace("ESQ", "").replace(".", "").replace(",", "").strip()]
+                        data_dict["attorney_name"] = [attorney_name.replace("ESQ", "").replace(".", "").replace(",", "").strip()]
 
 
             if "@" and (".com" in text or ".law" in text or ".net" in text):
-                data_dict["attorney_email"] = [text]
+                data_dict["attorney_email"].append(text)
+
+    data_dict["attorney_email"] = ", ".join( data_dict["attorney_email"])
 
     if data_dict.get('date_of_report') is not None and \
         data_dict.get('attorney_name') is not None and \
@@ -437,7 +440,7 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
         subject = file_name.split(f'.{file_type}')[0]
 
         if environment == 'development':
-            attorney_email = 'admin@Simpletowork.com'
+            attorney_email = 'admin@Simpletowork.com, info@simpletowork.com'
         # elif environment == 'production':
         #     attorney_email = 'admin@Simpletowork.com'
 
