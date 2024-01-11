@@ -151,7 +151,7 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
 
     if data_dict.get('date_of_report') is not None and \
         data_dict.get('attorney_name') is not None and \
-        data_dict.get('attorney_email') is not None and \
+        data_dict.get('attorney_email') is not [] and \
         data_dict.get('patient_name') is not None and \
         data_dict.get('date_of_birth') is not None and \
         data_dict.get('date_of_arrival') is not None:
