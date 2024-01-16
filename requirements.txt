@@ -25,3 +25,12 @@ reportlab
 PyMuPDF
 pypandoc
 pyhtml2pdf
+tqdm
+
+pytesseract
+opencv-python
+mss
+pywin32
+pdf2image
+python-poppler
+ImageHash

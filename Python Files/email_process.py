@@ -144,14 +144,15 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
                         data_dict["attorney_name"] = [attorney_name.replace("ESQ", "").replace(".", "").replace(",", "").strip()]
 
 
-            if "@" and (".com" in text or ".law" in text or ".net" in text):
+            if "@" and (".com" in text.lower() or ".law" in text.lower() or ".net" in text.lower()):
                 data_dict["attorney_email"].append(text)
 
     data_dict["attorney_email"] = ", ".join( data_dict["attorney_email"])
+    print_color(f'attorney_email {data_dict["attorney_email"]}', color='y')
 
     if data_dict.get('date_of_report') is not None and \
         data_dict.get('attorney_name') is not None and \
-        data_dict.get('attorney_email') is not [] and \
+        data_dict.get('attorney_email') != "" and \
         data_dict.get('patient_name') is not None and \
         data_dict.get('date_of_birth') is not None and \
         data_dict.get('date_of_arrival') is not None:
@@ -410,6 +411,7 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
 
     file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:Q")
     print_color(file_data, color='g')
+    file_data['attorney_email'] = file_data['attorney_email'].str.lower()
     pending_documents = [x['name'] for x in all_pending_documents]
     data_approved_to_email = file_data[(file_data['approved_to_send_out_?'] == 'TRUE')
                                        & (file_data['document_emailed'] != 'TRUE')
