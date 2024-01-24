@@ -60,18 +60,19 @@ def process_records(x, records_to_recruit):
 
 
     row_count = GsheetAPI.get_row_count(sheetname="Detailed Evaluation Data")
-
+    date = datetime.datetime.now().strftime('%Y-%m-%d')
     for i in range(records_to_recruit.shape[0]):
         id = records_to_recruit['id'].iloc[i]
         files_to_upload = records_to_recruit['please_upload_up_to_10_files_here'].iloc[i]
         date_of_exam = records_to_recruit['date_of_exam'].iloc[i]
-        print_color(date_of_exam, color='g')
+
         if str(date_of_exam) != 'NaT':
             file_name_date_of_exam = date_of_exam.strftime('%Y.%m.%d')
             date_of_exam = date_of_exam.strftime('%Y-%m-%d')
         else:
             file_name_date_of_exam = (datetime.datetime.now() + datetime.timedelta(days=365)).strftime('%Y.%m.%d')
             date_of_exam = (datetime.datetime.now() + datetime.timedelta(days=365)).strftime('%Y-%m-%d')
+        print_color(date_of_exam, type(date_of_exam), type(date), color='g')
         patient_first_name = records_to_recruit['patient_first_name'].iloc[i]
         patient_last_name = records_to_recruit['patient_last_name'].iloc[i]
         timestamp = records_to_recruit['timestamp'].iloc[i].strftime('%Y-%m-%d %H:%M:%S')
@@ -79,7 +80,12 @@ def process_records(x, records_to_recruit):
         patient_dob = records_to_recruit['patient_dob'].iloc[i].strftime('%Y-%m-%d')
         email_address = records_to_recruit['email_address'].iloc[i]
 
-        name_of_new_folder = f'{file_name_date_of_exam}, {patient_last_name}, {patient_first_name} '
+        if datetime.datetime.strptime(date_of_exam,"%Y-%m-%d") < datetime.datetime.strptime(date,"%Y-%m-%d"):
+            print_color(f'Date is earlier than today', color='y')
+
+            name_of_new_folder = f'{file_name_date_of_exam}, {patient_last_name}, {patient_first_name} MAIL'
+        else:
+            name_of_new_folder = f'{file_name_date_of_exam}, {patient_last_name}, {patient_first_name} '
         if name_of_new_folder not in folder_names:
             new_folder_id = GdriveAPI.create_folder(name_of_new_folder, response_folder_id)
         else:
@@ -126,7 +132,7 @@ def process_records(x, records_to_recruit):
         time.sleep(5)
 
         # break
-    #
+
 
 
 def run_file_upload_process(x, environment):
