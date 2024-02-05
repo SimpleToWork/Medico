@@ -145,9 +145,10 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
 
 
             if "@" and (".com" in text.lower() or ".law" in text.lower() or ".net" in text.lower()):
-                data_dict["attorney_email"].append(text)
+                data_dict["attorney_email"].append(text.strip())
 
     data_dict["attorney_email"] = ", ".join( data_dict["attorney_email"])
+
     print_color(f'attorney_email {data_dict["attorney_email"]}', color='y')
 
     if data_dict.get('date_of_report') is not None and \
@@ -339,7 +340,7 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
     row_count = GsheetAPI.get_row_count(sheetname=auto_publish_sheet_name)
     GsheetAPI.sort_sheet( gid=0, sort_range= [0,1,17,row_count], dimensionIndex=11, sortOrder='ASCENDING')
 
-    recruited_file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:M")
+    recruited_file_data = GsheetAPI.get_data_from_sheet(sheetname=auto_publish_sheet_name, range_name="A:P")
     lines_to_delete = recruited_file_data[(recruited_file_data['all_fields_assigned']=='FALSE') &
                                           (recruited_file_data['approved_to_send_out_?'] != 'TRUE')]
     lines_to_delete = lines_to_delete.iloc[::-1]
@@ -351,7 +352,7 @@ def get_new_files_to_send_out(x, GsheetAPI, GdriveAPI, child_folder_id,auto_publ
 
     print_color(recruited_file_data.columns, color='y')
     existing_files_not_emailed_out = recruited_file_data[(recruited_file_data['approved_to_send_out_?']=='TRUE') &
-                                          (recruited_file_data['doc_converted_to_pdf'] != 'TRUE')]
+                                          (recruited_file_data['document_emailed'] != 'TRUE')]
 
 
 
