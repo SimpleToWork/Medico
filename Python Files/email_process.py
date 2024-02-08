@@ -1,14 +1,12 @@
 import datetime
 
 import pandas as pd
-from dateutil.parser import parse
 from google_drive_class import GoogleDriveAPI
 from google_sheets_api import GoogleSheetsAPI
 from gmail_api import GoogleGmailAPI
 from global_modules import print_color, create_folder
 
 
-from docx import Document
 import docx2txt
 import docx2pdf
 from openpyxl.utils import get_column_letter
@@ -16,10 +14,7 @@ from dateutil.parser import parse
 # import textract
 from win32com import client as wc
 import time
-import io
 import os
-import getpass
-import re
 
 w = wc.Dispatch('Word.Application')
 

@@ -1,9 +1,7 @@
 import datetime
-import os
 import pandas as pd
 from google_drive_class import GoogleDriveAPI
 from google_sheets_api import GoogleSheetsAPI
-from gmail_api import GoogleGmailAPI
 from global_modules import print_color
 import time
 

@@ -6,17 +6,13 @@ import PyPDF2
 import win32com.client
 import fitz
 import datetime
-from reportlab.pdfgen import canvas
-import getpass
 from docx2pdf import convert
-import pypandoc
 import pandas as pd
 from sqlalchemy import inspect
 from global_modules import print_color, create_folder, run_sql_scripts, Get_SQL_Types, engine_setup
 from google_drive_class import GoogleDriveAPI
 from google_sheets_api import GoogleSheetsAPI
 import zipfile
-import pprint
 import time
 import shutil
 from docx import Document
