@@ -980,7 +980,7 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
     df = pd.read_sql(f'''Select * from folders where (New_Files_Imported is null or New_Files_Imported = 1)
         and (PDF_File_Processed != 1 or PDF_File_Processed is null)
         and Folder_Name not in ("1 - Folders For Review With Alan", "Processed Inputs", "Doubt Files", "Old Reports", "Repeat Files")
---         and Folder_Name in ("2023.12.19 Chavez-Garcia, Alejandra")
+        and Folder_Name in ("2024.02.21, Hoffman, Lori")
         order by Folder_Name
     ''', con=engine)
     merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
@@ -1076,6 +1076,10 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
                 processed_images_folder_id = None
                 inaccessible_files_folder_id = None
                 child_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
+                child_folders
+
+                child_folders = [x for x in child_folders if x.get("trashed") is False]
+                print_color(child_folders, color='y')
                 for each_folder in child_folders:
                     if "Processed Files" in each_folder.get("name"):
                         processed_folder_id = each_folder.get("id")
