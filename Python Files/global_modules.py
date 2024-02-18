@@ -12,6 +12,8 @@ import pandas as pd
 from sqlalchemy import create_engine, inspect
 import time
 import sqlalchemy
+import platform
+import requests
 
 import datetime
 
@@ -546,3 +548,41 @@ def run_sql_scripts(engine=None, scripts=None, tryexcept=False,
             print_color(f'Script Complete -- Took {round(time.time() - time_now,4)} seconds to Run --', color='p')
     print_color(f'Scripts Complete --All Scripts Took {time.time() - real_start_time} seconds to Run --', color='b')
 
+
+def record_program_performance(x, program_name, method):
+    ip = requests.get('https://api.ipify.org').content.decode('utf8')
+
+    database_name = "stw_task_manager"
+
+    computer_name = platform.node()
+    user = getpass.getuser()
+    time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print_color(f'Data imported', color='g')
+
+    url = x.webhook_url
+    run_task_webhook = f'{url}/method_performance'
+    print_color(f'Attempting to Hit: {run_task_webhook}')
+
+    headers = {'Content-Type': 'application/json'}
+
+    data = {
+        'DateTime':time_now,
+        'Computer':computer_name,
+        'User':user,
+        'Program Name':program_name,
+        'Function':method,
+        'Success':True
+    }
+    print_color(data, color='r')
+
+    data = {"ip": ip, "data": data}
+
+    response = requests.post(url=run_task_webhook, headers=headers, json=json.dumps(data))
+
+    print("Request URL:", response.request.url)
+    print("Request method:", response.request.method)
+    print("Request headers:", response.request.headers)
+    print("Request body:", response.request.body)
+
+    print_color(f"Request status: {response.status_code}", color='g')
+    print_color(f"Request content: {response.content}", color='y')
