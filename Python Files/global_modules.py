@@ -86,6 +86,8 @@ class ProgramCredentials:
         self.port = f['port']
         self.project_name = f['project_name']
 
+        self.webhook_url = f['webhook_url']
+
     def set_attributes(self, params):
 
         params = objdict(params)

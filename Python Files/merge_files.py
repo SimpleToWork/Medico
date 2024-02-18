@@ -1212,6 +1212,8 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
                             Folder_Moved_To_Processed_Inputs = True
                             where Folder_ID ="{folder_id}"''')
                     run_sql_scripts(engine=engine, scripts=scripts)
+
+
                 '''Step 10 - Update Google Sheet'''
                 map_files_and_folders_to_google_drive(engine, GsheetAPI)
         except:
