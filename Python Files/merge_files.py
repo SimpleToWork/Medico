@@ -1093,7 +1093,6 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
         processed_images_folder_id = None
         inaccessible_files_folder_id = None
         child_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
-        child_folders
         folder_exclusions = []
 
         child_folders = [x for x in child_folders if x.get("trashed") is False]
@@ -1209,7 +1208,7 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
         # print_color(len(sorted_files),color='y')
         if combined_files_size > .80:
             print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r')
-            scripts = [ f'''update merge_process set Folder_To_Large_To_Combine = True where Folder_ID ="{folder_id}" ''']
+            scripts = [f'''update merge_process set Folder_To_Large_To_Combine = True where Folder_ID ="{folder_id}" ''']
             run_sql_scripts(engine=engine, scripts=scripts)
         else:
             final_combined_pdf_file, final_upload_file_name = merge_to_pdf(GdriveAPI, sorted_files, excluded_files,
