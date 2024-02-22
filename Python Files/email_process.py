@@ -165,12 +165,11 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
         data_dict["all_fields_assigned"] = True
         data_dict["approved_to_send_out"] = True
 
-
-
-
     print_color(data_dict, color='r')
-
-    df = pd.DataFrame.from_dict(data_dict ,orient ='columns')
+    df = pd.DataFrame.from_dict(data_dict, orient='columns')
+    if is_date(data_dict["date_of_birth"][0]):
+        df['date_of_birth'] = pd.to_datetime(df['date_of_birth'])
+        df['date_of_birth'] = df['date_of_birth'].apply(lambda x: x.strftime("%Y-%m-%d"))
 
     print_color(df, color='y')
 
@@ -270,7 +269,7 @@ def update_google_sheet_record(GsheetAPI, id, file_id, file_converted, email_sen
     data = [[id, file_id,id_file_id, file_converted, email_sent, file_moved, new_file_folder]]
     df = pd.DataFrame(data)
 
-    GsheetAPI.insert_row_to_sheet(sheetname=sheetname, gid=1915603262,
+    GsheetAPI.insert_row_to_sheet(sheetname=sheetname, gid=749548251,
                                   insert_range=['A', 1, "D", 1],
                                   data=None)
 
@@ -498,7 +497,7 @@ def run_email_process(x, environment):
     move file from auto publish folder to storage folder
     update google sheet accordingly    
     '''
-    email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, child_folder_id)
+    # email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, child_folder_id)
 
 
 
