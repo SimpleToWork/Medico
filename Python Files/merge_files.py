@@ -970,8 +970,8 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
         print_color(final_combined_pdf_file, color='y')
         print_color(upload_folder_id, color='y')
 
-        # GdriveAPI.upload_file(folder_id=upload_folder_id, file_name=final_upload_file_name,
-        #                       file_path=final_combined_pdf_file)
+        GdriveAPI.upload_file(folder_id=upload_folder_id, file_name=final_upload_file_name,
+                              file_path=final_combined_pdf_file)
 
         return final_combined_pdf_file, final_upload_file_name
 
