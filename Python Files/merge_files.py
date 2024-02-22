@@ -1265,10 +1265,12 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
     print_color(df, color='r')
 
     for i in range(df.shape[0]):
-        process_individual_folder(x, engine, i, response_folder_id, processed_inputs_folder_id, df, merge_process_df,
+        try:
+            process_individual_folder(x, engine, i, response_folder_id, processed_inputs_folder_id, df, merge_process_df,
                                   file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
                                   prefix_exclusion_list, images_extension_list)
-
+        except Exception as e:
+            print_color(e, color='r')
 
 
 def merge_files_to_pdf(x, environment):
