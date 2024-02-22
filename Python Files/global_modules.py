@@ -88,6 +88,9 @@ class ProgramCredentials:
 
         self.webhook_url = f['webhook_url']
 
+        self.ocr_setting = f['ocr_setting'].replace("%USERNAME%", getpass.getuser())
+        self.ocr_directory = f['ocr_directory']
+
     def set_attributes(self, params):
 
         params = objdict(params)
@@ -169,6 +172,103 @@ def convert_dataframe_types(df=None):
                     df[col_list[i]] = pd.to_numeric(df[col_list[i]], errors='ignore')
 
     return df
+
+def error_dict():
+    error_dictionary = {'OSError':{1:'Operation not permitted',
+                2:'No such file or directory',
+                3:'No such process',
+                4:'Interrupted system call',
+                5:'I/O error',
+                6:'No such device or address',
+                7:'Argument list too long',
+                8:'Exec format error',
+                9:'Bad file number',
+                10:'No child processes',
+                11:'Try again',
+                12:'Out of memory',
+                13:'Permission denied',
+                14:'Bad address',
+                15:'Block device required',
+                16:'Device or resource busy',
+                17:'File exists',
+                18:'Cross-device link',
+                19:'No such device',
+                20:'Not a directory',
+                21:'Is a directory',
+                22:'Invalid argument',
+                23:'File table overflow',
+                24:'Too many open files',
+                25:'Not a typewriter',
+                26:'Text file busy',
+                27:'File too large',
+                28:'No space left on device',
+                29:'Illegal seek',
+                30:'Read-only file system',
+                31:'Too many links',
+                32:'Broken pipe',
+                33:'Math argument out of domain of func',
+                34:'Math result not representable',
+                97:'Address family not supported by protocol',
+                104:'Connection timed out',
+                110:'Connection timed out',
+                115:'Operation now in progress'}}
+
+
+    return error_dictionary
+
+
+def error_handler(func):
+    def Inner_Function(*args, **kwargs):
+
+        # assign_module(func)
+
+        print_color('Error Handler Decorator Called', color='r')
+        # engine, project_name = get_proper_engine()
+        start_time = datetime.datetime.now()
+        error_message = None
+        error_type = None
+        error_code = None
+        error_description = None
+
+        e = ""
+
+
+        params = locals().get('kwargs')
+        # assign_module(params, func.__module__, func.__name__)
+        error_dictionary = error_dict()
+        # print(f'Dict: {type(error_dictionary)}')
+        # print('params', params)
+        param_string = ""
+        for each_param in params:
+            param_string += f'{each_param}: {params.get(each_param)}\n'
+
+        # print_color(param_string, color='g')
+        try:
+            out = func(*args, **kwargs)
+            success = True
+
+
+            print_color('////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////',color='y')
+            # print_color('////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////',color='w')
+
+
+            return out
+        except OSError as e:
+            error_type = "OSError"
+            error_message = str(e)
+            error_num = e.args[0]
+            error_code = f'Errno {e.args[0]}'
+            # print(f"{func.__name__} Error:  {e}\n {error_code}")
+
+            error_description = error_dictionary.get(error_type).get(error_num)
+            success = False
+
+
+            print_color('////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////', color='w')
+            print_color('////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////', color='w')
+
+    return Inner_Function
+
 
 
 class create_folder():

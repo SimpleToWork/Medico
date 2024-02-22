@@ -92,7 +92,17 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
 
         # text = textract.process(file_export)
     text_list = text.split("\n")
-    # print_color(text_list, color='y')
+    while ("" in text_list):
+        text_list.remove("")
+
+    draft_line = None
+    for i, line in enumerate(text_list[:5]):
+        if "draft" in line.lower():
+            draft_line = i + 1
+    print_color(draft_line, color='r')
+    if draft_line is not None:
+        text_list = text_list[draft_line: ]
+    print_color(text_list, color='y')
 
 
     for i, row_text in enumerate(text_list):

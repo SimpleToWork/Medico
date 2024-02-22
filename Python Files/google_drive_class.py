@@ -145,7 +145,7 @@ class GoogleDriveAPI():
         # return file
 
     def upload_file(self, folder_id, file_name, file_path):
-        media = MediaFileUpload(file_path, chunksize=1024*1024, resumable=True)
+        media = MediaFileUpload(file_path, chunksize=262144, resumable=True)
 
         file_metadata = {
             'name': file_name,
@@ -156,6 +156,7 @@ class GoogleDriveAPI():
         response = None
         while response is None:
             status, response = request.next_chunk()
+
             if status:
                 print(f'Uploaded {int(status.progress() * 100)}%')
 

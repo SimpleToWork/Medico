@@ -1,5 +1,8 @@
 <FileToPDF>
     <ApplicationSettings>
+        <Activation>
+           <Key>MMLMAJHHB6</Key>
+        </Activation>
         <Notifications>
             <File>
                 <CreateFolders>0</CreateFolders>

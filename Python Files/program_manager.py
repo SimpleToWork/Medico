@@ -1,8 +1,9 @@
-from merge_files import merge_files_to_pdf
+from merge_files import merge_files_to_pdf, ocr_conversion
 from global_modules import ProgramCredentials, print_color, record_program_performance
 from email_process import run_email_process
 from file_upload_process import run_file_upload_process
 from google_sheets_api import google_sheet_update
+from google_drive_class import GoogleDriveAPI
 import getpass
 from tqdm import tqdm
 import random
@@ -22,10 +23,8 @@ def run_program(environment, function_to_run):
     elif function_to_run == 'Merge Files':
         merge_files_to_pdf(x, environment)
 
-    computer = getpass.getuser()
-    # if computer != "Ricky":
-    #     google_sheet_update(x, program_name="Medico", method=function_to_run)
     record_program_performance(x, program_name="Medico", method=function_to_run)
+
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
