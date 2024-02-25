@@ -497,7 +497,7 @@ def run_email_process(x, environment):
     move file from auto publish folder to storage folder
     update google sheet accordingly    
     '''
-    # email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, child_folder_id)
+    email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, child_folder_id)
 
 
 
