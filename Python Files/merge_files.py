@@ -16,6 +16,7 @@ from google_sheets_api import GoogleSheetsAPI
 import zipfile
 import time
 import shutil
+import pprint
 from docx import Document
 from pyhtml2pdf import converter
 from PIL import Image
@@ -380,13 +381,10 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                             ''']
                         run_sql_scripts(engine=engine, scripts=scripts)
 
-        break
-
-
-
     ''' PROCESS SINGLE ZIP FILES'''
 
     print_color(folder_dict, color='y')
+    pprint.pprint(folder_dict)
 
     all_files = GdriveAPI.get_files(folder_id=response_folder_id)
     print_color(len(all_files), color='y')
@@ -1312,12 +1310,10 @@ def merge_files_to_pdf(x, environment):
 
     '''GET DICT OF ALL FOLDERS IN RECORD-INPUT'''
     existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
-    print_color(len(existing_patient_folders), color='y')
     '''RENAME FOLDERS THAT ARE NOT FORMATTED PROPERLY'''
     rename_existing_folders(GdriveAPI, existing_patient_folders)
     '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
     existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
-    print_color(len(existing_patient_folders), color='y')
     '''MERGE FOLDERS THAT HAVE THE SAME NAME'''
     merge_existing_folders(GdriveAPI, existing_patient_folders, response_folder_id)
     '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
