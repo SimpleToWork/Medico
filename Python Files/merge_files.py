@@ -329,14 +329,15 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
     for key, val in folder_dict.items():
         print_color(key, val, color='p')
         if key in patient_folders:
+            scripts = []
             print_color(f'Folder Already Exists', color='y')
             parent_folder_id = existing_patient_folders.get(key)[0]
             data = GdriveAPI.get_file_data(parent_folder_id)
             print_color(data.get("parents")[0] , response_folder_id, color='g')
             if data.get("parents")[0] != response_folder_id:
                GdriveAPI.move_file(file_id=parent_folder_id, new_folder_id=response_folder_id)
-               scripts = [f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
-                               values("{parent_folder_id}", "{key}", True)''']
+               scripts.append(f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
+                               values("{parent_folder_id}", "{key}", True)''')
                run_sql_scripts(engine=engine, scripts=scripts)
 
             for each_id in val.get("ids"):
@@ -344,7 +345,7 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                 if file_df.shape[0] > 0:
                     scripts.append(f'Delete from merge_process where Folder_ID = "{each_id}"')
                 GdriveAPI.move_file(file_id=each_id, new_folder_id=parent_folder_id)
-            scripts = [f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null where Folder_ID="{parent_folder_id}"']
+            scripts.append(f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null where Folder_ID="{parent_folder_id}"')
             run_sql_scripts(engine=engine, scripts=scripts)
         else:
             if len(val.get("ids")) > 1:
