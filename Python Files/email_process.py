@@ -304,10 +304,10 @@ def move_drive_file(GdriveAPI, file_name, file_id, child_folders):
         'W': 'V-Z',
         'X': 'V-Z',
         'Y': 'V-Z',
-        'Z': 'Z - Test Cases'
-
+        'Z': 'V-Z'
     }
     file_start_letter = file_name[0]
+    print_color(f'file_start_letter: {file_start_letter}', color='r')
     move_file_folder = file_folder_dict.get(file_start_letter)
     move_folder_id = None
 
