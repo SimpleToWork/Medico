@@ -140,9 +140,9 @@ def get_docx_page_count(file_path):
     return page_count
 
 
-def get_existing_patient_folders(GdriveAPI=None, response_folder_id=None, sub_child_folders=None,
-                                 processed_folder_id=None, include_processed_folders=False):
-
+def get_existing_patient_folders(GdriveAPI=None, record_input_folder_id=None, sub_child_folders=None,
+                                 processed_folder_id=None, include_processed_folders=False, main_log_file=None):
+    print_color('''GET DICT OF ALL FOLDERS IN RECORD-INPUT''', color='k', output_file=main_log_file)
 
     existing_patient_folders = {}
     for each_folder in sub_child_folders:
@@ -166,10 +166,12 @@ def get_existing_patient_folders(GdriveAPI=None, response_folder_id=None, sub_ch
     return existing_patient_folders
 
 
-def rename_existing_folders(GdriveAPI, existing_patient_folders):
+def rename_existing_folders(GdriveAPI, existing_patient_folders, main_log_file):
+    print_color('''RENAME FOLDERS THAT ARE NOT FORMATTED PROPERLY''', color='k', output_file=main_log_file)
+
     numbers = number_list()
-    print_color(existing_patient_folders, color='y')
-    print_color(len(existing_patient_folders.keys()), color='g')
+    print_color(f'Count of Patient Folders {len(existing_patient_folders.keys())}', color='g', output_file=main_log_file)
+    print_color(existing_patient_folders, color='y', output_file=main_log_file)
     counter = 0
     for key, val in existing_patient_folders.items():
         core_folder_name = key.strip().replace("  ", " ")
@@ -178,78 +180,83 @@ def rename_existing_folders(GdriveAPI, existing_patient_folders):
 
         core_folder_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_folder_name)
         # core_folder_name = core_folder_name.replace(" ",", ").replace(",,","")
-        print_color(core_folder_name, color='r')
+        print_color(core_folder_name, color='r', output_file=main_log_file)
         if key.strip() != core_folder_name:
             counter +=1
             # print_color(core_folder_name, color='p')
             for each_item in val:
-                print_color(key, "            ", core_folder_name, each_item, color='y')
+                print_color(key, "            ", core_folder_name, each_item, color='y', output_file=main_log_file)
                 GdriveAPI.rename_folder(folder_id=each_item, new_folder_name=core_folder_name)
-    print_color(f'{counter} Folders Renamed', color='g')
+    print_color(f'{counter} Folders Renamed', color='g', output_file=main_log_file)
 
 
-def merge_existing_folders(GdriveAPI, existing_patient_folders, response_folder_id):
+def merge_existing_folders(GdriveAPI, existing_patient_folders, record_input_folder_id, main_log_file):
+    print_color( '''MERGE FOLDERS THAT HAVE THE SAME NAME''', color='k', output_file=main_log_file)
+
     existing_patient_folders_with_duplicates = {}
     for key, val in existing_patient_folders.items():
         if len(val) > 1:
-            print_color(key, val, color='g')
+            print_color(key, val, color='g', output_file=main_log_file)
             existing_patient_folders_with_duplicates.update({key: val})
 
-    print_color(len(existing_patient_folders_with_duplicates.keys()), color='b')
-    print_color(existing_patient_folders_with_duplicates.keys(), color='g')
+    print_color(len(existing_patient_folders_with_duplicates.keys()), color='b', output_file=main_log_file)
+    print_color(existing_patient_folders_with_duplicates.keys(), color='g', output_file=main_log_file)
     counter = 0
     for key, val in existing_patient_folders_with_duplicates.items():
         original_folder_id = ''
         for each_item in val:
             data = GdriveAPI.get_file_data(file_id=each_item)
-            print_color(data.get("owners")[0].get("emailAddress"), data.get("parents")[0], color='r')
+            print_color(data.get("owners")[0].get("emailAddress"), data.get("parents")[0], color='r', output_file=main_log_file)
 
-            if data.get("parents")[0] != response_folder_id:
-                print_color(f'Moving Folder to Record Input', color='b')
-                GdriveAPI.move_file(file_id=each_item, new_folder_id=response_folder_id)
+            if data.get("parents")[0] != record_input_folder_id:
+                print_color(f'Moving Folder to Record Input', color='b', output_file=main_log_file)
+                GdriveAPI.move_file(file_id=each_item, new_folder_id=record_input_folder_id)
 
-            if data.get("owners")[0].get("emailAddress") != 'asnmedico@gmail.com' and data.get("parents")[0] != response_folder_id:
+            if data.get("owners")[0].get("emailAddress") != 'asnmedico@gmail.com' and data.get("parents")[0] != record_input_folder_id:
                 original_folder_id = each_item
 
             elif data.get("owners")[0].get("emailAddress") != 'asnmedico@gmail.com':
                 original_folder_id = each_item
 
-        print_color(original_folder_id, color='g')
+        print_color(original_folder_id, color='g', output_file=main_log_file)
 
-        print_color(f'Folder has Duplicate Entries. Will Merge', color='p')
+        print_color(f'Folder has Duplicate Entries. Will Merge', color='p', output_file=main_log_file)
         if original_folder_id == "":
             original_folder_id = val[0]
         folders_to_process = val
         folders_to_process.remove(original_folder_id)
         # print_color(folders_to_process, color='p')
         for each_item in folders_to_process:
-            print_color(each_item, color='p')
-
-
+            print_color(each_item, color='p', output_file=main_log_file)
             ''' Get Files in Folder / Move Files / Remove Folder '''
-            print_color(each_item, original_folder_id, color='b')
+            print_color(f'Merging {each_item} into {original_folder_id}', color='b', output_file=main_log_file)
             folder_files = GdriveAPI.get_files(each_item)
             for each_file in folder_files:
                 each_file_id = each_file.get("id")
-
-                print_color(each_file, color='y')
+                print_color(each_file, color='y', output_file=main_log_file)
                 GdriveAPI.move_file(file_id=each_file_id, new_folder_id=original_folder_id)
-
-            GdriveAPI.delete_folder(folder_id=each_item, folder_name=key)
+            folder_files = GdriveAPI.get_files(each_item)
+            if len(folder_files) >0:
+                print_color(f'Files Still Exists in Folder to Merge', color='r', output_file=main_log_file)
+            else:
+                GdriveAPI.delete_folder(folder_id=each_item, folder_name=key)
             counter += 1
-        # break
-    print_color(f'{counter} Folders Merged', color='g')
 
 
-def import_new_folders(engine, database_name, existing_patient_folders):
+    print_color(f'{counter} Folders Merged', color='g', output_file=main_log_file)
+
+
+def import_new_folders(engine, database_name, existing_patient_folders, main_log_file):
+    print_color('''MAP FOLDERS TO SQL''', color='k', output_file=main_log_file)
+
     table_name = 'folders'
     if inspect(engine).has_table(table_name):
         data_df = pd.read_sql(f'Select "SQL" as `TYPE`, Folder_ID, Folder_Name from {table_name}', con=engine)
     else:
         data_df = pd.DataFrame()
 
-    print_color(data_df, color='r')
-    print_color(existing_patient_folders, color='g')
+    print_color(data_df, color='r', output_file=main_log_file)
+    print_color(existing_patient_folders, color='g', output_file=main_log_file)
 
     df = pd.DataFrame.from_dict(existing_patient_folders, orient='columns').transpose()
     df['Folder_Name'] = df.index
@@ -257,14 +264,14 @@ def import_new_folders(engine, database_name, existing_patient_folders):
     df = df.reset_index(drop=True)
 
     df.columns = ["TYPE", 'Folder_ID', 'Folder_Name']
-    print_color(df, color='g')
+    print_color(df, color='g', output_file=main_log_file)
     # df = df[[ 'Folder_ID', 'Folder_Name']]
 
     existing_folders_df = df
 
     df = pd.concat([df, data_df]).drop_duplicates(subset=['Folder_ID'], keep=False)
     df = df[df['TYPE'] == "Google Drive"]
-    print_color(df, color='p')
+    print_color(df, color='p', output_file=main_log_file)
 
     df = df.drop(columns=['TYPE'])
 
@@ -274,36 +281,37 @@ def import_new_folders(engine, database_name, existing_patient_folders):
 
     data_df = pd.read_sql(f'Select "SQL" as `TYPE`, Folder_ID, Folder_Name from {table_name}', con=engine)
     new_df = data_df.merge(existing_folders_df, left_on='Folder_ID', right_on='Folder_ID', how='left')
-    print_color(new_df, color='y')
+    print_color(new_df, color='y', output_file=main_log_file)
     for i in range(new_df.shape[0]):
         check_exists = new_df['TYPE_y'].iloc[i]
         folder_id = new_df['Folder_ID'].iloc[i]
-        print_color(check_exists, color='r')
+        print_color(check_exists, color='r', output_file=main_log_file)
         if str(check_exists) == 'nan':
             run_sql_scripts(engine=engine, scripts=[f'Delete from folders where folder_id = "{folder_id}"'])
 
 
-def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_folders):
-
+def process_new_files(engine, GdriveAPI, record_input_folder_id, existing_patient_folders, main_log_file):
+    print_color('''MAP FOLDERS TO SQL''', color='k', output_file=main_log_file)
     merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
 
     numbers = number_list()
-    all_files = GdriveAPI.get_files(folder_id=response_folder_id)
-    print_color(len(all_files), color='y')
-    all_files= [x for x in all_files if "Combined.pdf" not in x.get('name')]
-    print_color(len(all_files), color='y')
+    all_files = GdriveAPI.get_files(folder_id=record_input_folder_id)
+    print_color(len(all_files), color='y', output_file=main_log_file)
+    all_files= [x for x in all_files if "Combined" not in x.get('name')]
+    print_color(len(all_files), color='y', output_file=main_log_file)
+    print_color(all_files, color='y', output_file=main_log_file)
+
 
     folder_dict = {}
 
     for i, each_file in enumerate(all_files):
-
         core_file_name = ".".join(each_file.get("name").split(".")[:-1])
-        print_color(i, core_file_name, each_file.get("name"), color='g')
+        print_color(i, core_file_name, each_file.get("name"), color='g', output_file=main_log_file)
         file_id = each_file.get("id")
         file_extension = each_file.get("name").split(".")[-1]
         if core_file_name[-2:].strip() in numbers:
             core_file_name = core_file_name[:-2]
-            print_color(i, core_file_name, color='r')
+            print_color(i, core_file_name, color='r', output_file=main_log_file)
             core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
             if core_file_name in folder_dict.keys():
                 folder_dict[core_file_name]["ids"].append(file_id)
@@ -312,7 +320,7 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                 folder_dict.update({core_file_name: {"ids": [file_id], "extensions": [file_extension]}})
         else:
             core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
-            print_color(i, core_file_name, color='y')
+            print_color(i, core_file_name, color='y', output_file=main_log_file)
             if core_file_name in folder_dict.keys():
                 folder_dict[core_file_name]["ids"].append(file_id)
                 folder_dict[core_file_name]["extensions"].append(file_extension)
@@ -320,22 +328,22 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                 folder_dict.update({core_file_name:  {"ids": [file_id], "extensions": [file_extension]}})
 
     folder_dict = dict(sorted(folder_dict.items()))
-    print_color(folder_dict, color='g')
+    print_color(folder_dict, color='g', output_file=main_log_file)
 
 
     ''' CORE NAME = DATE, LAST NAME, FIRST NAME'''
     ''' ONLY MOVE FILES THAT HAVE MORE THAN 1 FILE PER CORE NAME'''
     patient_folders = list(existing_patient_folders.keys())
     for key, val in folder_dict.items():
-        print_color(key, val, color='p')
+        print_color(key, val, color='p', output_file=main_log_file)
         if key in patient_folders:
             scripts = []
-            print_color(f'Folder Already Exists', color='y')
+            print_color(f'Folder Already Exists', color='y', output_file=main_log_file)
             parent_folder_id = existing_patient_folders.get(key)[0]
             data = GdriveAPI.get_file_data(parent_folder_id)
-            print_color(data.get("parents")[0] , response_folder_id, color='g')
-            if data.get("parents")[0] != response_folder_id:
-               GdriveAPI.move_file(file_id=parent_folder_id, new_folder_id=response_folder_id)
+            print_color(data.get("parents")[0] , record_input_folder_id, color='g', output_file=main_log_file)
+            if data.get("parents")[0] != record_input_folder_id:
+               GdriveAPI.move_file(file_id=parent_folder_id, new_folder_id=record_input_folder_id)
                scripts.append(f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
                                values("{parent_folder_id}", "{key}", True)''')
                run_sql_scripts(engine=engine, scripts=scripts)
@@ -349,8 +357,8 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
             run_sql_scripts(engine=engine, scripts=scripts)
         else:
             if len(val.get("ids")) > 1:
-                print_color(f'Folder Does Not Exists', color='r')
-                folder_id = GdriveAPI.create_folder(folder_name=key, parent_folder=response_folder_id)
+                print_color(f'Folder Does Not Exists', color='r', output_file=main_log_file)
+                folder_id = GdriveAPI.create_folder(folder_name=key, parent_folder=record_input_folder_id)
 
                 scripts = []
                 for each_id in val.get("ids"):
@@ -371,7 +379,7 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
 
                 run_sql_scripts(engine=engine, scripts=scripts)
             else:
-                print_color(f'File is Single File will not move', color='r')
+                print_color(f'File is Single File will not move', color='r', output_file=main_log_file)
                 file_id = val.get("ids")[0]
                 file_extension = val.get("extensions")[0]
                 file_df = merge_process_df[(merge_process_df['Folder_ID'] == file_id)]
@@ -383,21 +391,20 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                         run_sql_scripts(engine=engine, scripts=scripts)
 
     ''' PROCESS SINGLE ZIP FILES'''
-
-    print_color(folder_dict, color='y')
+    print_color(folder_dict, color='y', output_file=main_log_file)
     pprint.pprint(folder_dict)
 
-    all_files = GdriveAPI.get_files(folder_id=response_folder_id)
-    print_color(len(all_files), color='y')
-    all_files = [x for x in all_files if "Combined.pdf" not in x.get('name')]
+    all_files = GdriveAPI.get_files(folder_id=record_input_folder_id)
+    print_color(len(all_files), color='y', output_file=main_log_file)
+    all_files = [x for x in all_files if "Combined" not in x.get('name')]
     for i, each_file in enumerate(all_files):
-        print_color(i, each_file, color='g')
+        print_color(i, each_file, color='g', output_file=main_log_file)
         core_file_name = ".".join(each_file.get("name").split(".")[:-1])
         file_id = each_file.get("id")
         file_extension = each_file.get("name").split(".")[-1].lower()
         if core_file_name[-2:].strip() in numbers:
             core_file_name = core_file_name[:-2]
-            print_color(core_file_name, color='r')
+            print_color(core_file_name, color='r', output_file=main_log_file)
             core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
             if core_file_name in folder_dict.keys():
                 folder_dict[core_file_name]["ids"].append(file_id)
@@ -409,7 +416,7 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
 
         if file_extension == 'zip':
             if core_file_name in patient_folders:
-                print_color(f'Folder Already Exists', color='y')
+                print_color(f'Folder Already Exists', color='y', output_file=main_log_file)
                 new_folder_id = existing_patient_folders.get(core_file_name)[0]
 
                 # for each_id in val:
@@ -417,8 +424,8 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                 scripts = [f'Update folders set New_Files_Imported = TRUE, PDF_File_Processed = null where Folder_ID="{new_folder_id}"']
                 run_sql_scripts(engine=engine, scripts=scripts)
             else:
-                print_color(f'Folder Does Not Exists', color='r')
-                folder_id = GdriveAPI.create_folder(folder_name=core_file_name, parent_folder=response_folder_id)
+                print_color(f'Folder Does Not Exists', color='r', output_file=main_log_file)
+                folder_id = GdriveAPI.create_folder(folder_name=core_file_name, parent_folder=record_input_folder_id)
 
                 GdriveAPI.move_file(file_id=file_id, new_folder_id=folder_id)
                 scripts = [f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
@@ -426,7 +433,7 @@ def process_new_files(engine, GdriveAPI, response_folder_id, existing_patient_fo
                 run_sql_scripts(engine=engine, scripts=scripts)
         else:
             if core_file_name in patient_folders:
-                print_color(f'Folder Already Exists', color='y')
+                print_color(f'Folder Already Exists', color='y', output_file=main_log_file)
                 new_folder_id = existing_patient_folders.get(core_file_name)[0]
 
                 GdriveAPI.move_file(file_id=file_id, new_folder_id=new_folder_id)
@@ -536,7 +543,7 @@ def move_files_to_parent_folder(root_folder, source_folder, folder, zip_exclusio
 
 
 
-def unpack_child_folders(GdriveAPI, parent_folder, processed_folder_id, child_folders, extension_exclusion_list, prefix_exclusion_list):
+def unpack_child_folders(GdriveAPI, parent_folder, processed_folder_id, child_folders, extension_exclusion_list, prefix_exclusion_list, patient_log_file):
     excluded_folders = []
     for each_folder in child_folders:
         child_folder_id = each_folder.get("id")
@@ -554,10 +561,10 @@ def unpack_child_folders(GdriveAPI, parent_folder, processed_folder_id, child_fo
                 if  name.startswith(prefix):
                     starts_with.append(name)
         if len(overlapping_extensions) >0 or len(starts_with) >0:
-            print_color(f'Will not unpack Folder because Exclusion file exists', color='r')
+            print_color(f'Will not unpack Folder because Exclusion file exists', color='r', output_file=patient_log_file)
             excluded_folders.append(each_folder)
         else:
-            print_color(child_folder_files, color='p')
+            print_color(child_folder_files, color='p', output_file=patient_log_file)
             for each_child_file in child_folder_files:
                 child_file_id = each_child_file.get("id")
                 GdriveAPI.move_file( file_id=child_file_id, new_folder_id=parent_folder)
@@ -565,16 +572,16 @@ def unpack_child_folders(GdriveAPI, parent_folder, processed_folder_id, child_fo
             try:
                 GdriveAPI.delete_folder(file_id=child_folder_id, folder_name=child_folder_name)
             except:
-                print_color(f'Could Not Delete Folder. WIll Move instad', color='r')
+                print_color(f'Could Not Delete Folder. WIll Move instead', color='r', output_file=patient_log_file)
                 GdriveAPI.move_file( file_id=child_folder_id, new_folder_id=processed_folder_id)
     return excluded_folders
 
 def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name, viewable_files, folder_files,
-                      extension_list, extension_exclusion_list, prefix_exclusion_list
+                      extension_list, extension_exclusion_list, prefix_exclusion_list, patient_log_file
                       ):
     numbers = number_list()
-    print_color(f'Run Zip Process', color='y')
-    print_color(file_name, color='r')
+    print_color(f'Run Zip Process', color='y', output_file=patient_log_file)
+    print_color(file_name, color='r', output_file=patient_log_file)
 
     core_file_name = ".".join(file_name.split(".")[:-1])
     number_assignment = None
@@ -582,24 +589,24 @@ def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, fi
     if core_file_name[-2:].strip() in numbers:
         number_assignment = core_file_name[-2:].strip()
         core_file_name = core_file_name[:-2]
-        print_color(core_file_name, color='r')
+        print_color(core_file_name, color='r', output_file=patient_log_file)
         core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
 
     else:
         core_file_name = re.sub(r'(?<=[,])(?=[^\s])', r' ', core_file_name)
 
-    print_color(number_assignment, color='p')
+    print_color(number_assignment, color='p', output_file=patient_log_file)
     existing_files = [x.get("name") for x in folder_files]
-    print_color(existing_files, color='y')
+    print_color(existing_files, color='y', output_file=patient_log_file)
 
     GdriveAPI.download_file(file_id=file_id, file_name=extended_file_name)
 
     extended_unzipped_folder = f'{file_export}\\{".".join(file_name.split(".")[:-1])} unzipped'
-    print_color(extended_unzipped_folder, color='y')
+    print_color(extended_unzipped_folder, color='y', output_file=patient_log_file)
     create_folder(extended_unzipped_folder)
 
     check_zip_files = os.listdir(extended_unzipped_folder)
-    print_color(check_zip_files, color='p')
+    print_color(check_zip_files, color='p', output_file=patient_log_file)
 
     with zipfile.ZipFile(extended_file_name, 'r') as z:
         # Replace 'extracted_folder_id' with the desired folder ID for the extracted contents
@@ -610,28 +617,28 @@ def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, fi
             extracted_path = os.path.join(extended_unzipped_folder, sanitized_name)
 
             normalized_path = os.path.normpath(extracted_path.rstrip())
-            print_color(normalized_path, color='b')
+            print_color(normalized_path, color='b', output_file=patient_log_file)
             paths_to_create = normalized_path.split(extended_unzipped_folder)[-1].split("\\")[1:-1]
             for i in range(len(paths_to_create)):
                 create_path = "\\".join(paths_to_create[:i+1])
                 create_folder(f'{extended_unzipped_folder}\\{create_path}')
             # z.extract( file_info.filename, extended_unzipped_folder)
-            print_color(sanitized_name, color='r')
+            print_color(sanitized_name, color='r', output_file=patient_log_file)
             if sanitized_name[-1] == "\\":
                 create_folder(normalized_path)
             else:
-                print_color(filename, color='p')
+                print_color(filename, color='p', output_file=patient_log_file)
                 with z.open(filename) as source, open(normalized_path, 'wb') as target:
                     shutil.copyfileobj(source, target)
 
         # z.extractall(extended_unzipped_folder)
-        print_color(f'Files Unzipped into {extended_unzipped_folder}', color='b')
+        print_color(f'Files Unzipped into {extended_unzipped_folder}', color='b', output_file=patient_log_file)
     zip_exclusion_list =[]
     zip_exclusions = move_files_to_parent_folder(extended_unzipped_folder,extended_unzipped_folder, extended_unzipped_folder, zip_exclusion_list,
                       extension_list, extension_exclusion_list, prefix_exclusion_list)
     extracted_files = os.listdir(extended_unzipped_folder)
     files_to_upload = [x for x in extracted_files if x.split(".")[-1].lower() in extension_list]
-    print_color(extracted_files, color='y')
+    print_color(extracted_files, color='y', output_file=patient_log_file)
     # for each_item in extracted_files:
     #     if os.path.isdir(f'{extended_unzipped_folder}\\{each_item}'):
     #         shutil.rmtree(f'{extended_unzipped_folder}\\{each_item}')
@@ -645,7 +652,7 @@ def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, fi
         else:
             new_file_name = each_unzipped_file
         if new_file_name in existing_files:
-            print_color(f'File Already Uploaded', color='r')
+            print_color(f'File Already Uploaded', color='r', output_file=patient_log_file)
         else:
             GdriveAPI.upload_file(folder_id=folder_id, file_name=new_file_name, file_path=file_path)
 
@@ -701,9 +708,9 @@ def bytes_to_gb(bytes_value):
     return gb_value
 
 
-def get_file_size(sorted_files, extension_list):
+def get_file_size(sorted_files, extension_list, patient_log_file):
     numbers = number_list()
-    print_color(sorted_files, color='b')
+    print_color(sorted_files, color='b', output_file=patient_log_file)
     data = {
         'ID': [],
         'File Name': [],
@@ -712,7 +719,7 @@ def get_file_size(sorted_files, extension_list):
     }
 
     considered_file_df = pd.DataFrame(data)
-    print_color(considered_file_df, color='b')
+    print_color(considered_file_df, color='b', output_file=patient_log_file)
 
     for each_file in sorted_files:
         # print_color(each_file, color='r')
@@ -729,18 +736,18 @@ def get_file_size(sorted_files, extension_list):
             if check_if_exists.shape[0] ==0:
                 considered_file_df = considered_file_df._append(new_row, ignore_index=True)
 
-            print_color(file_name, file_size, file_id, file_ext, color='y')
+            print_color(file_name, file_size, file_id, file_ext, color='y', output_file=patient_log_file)
 
     considered_file_df['File Size'] = considered_file_df['File Size'].astype(int)
     considered_file_df['File Size in GB'] = considered_file_df['File Size'].apply(lambda x: bytes_to_gb(x))
 
-    print_color(considered_file_df, color='b')
-    print_color(considered_file_df['File Size in GB'].dtype, color='b')
+    print_color(considered_file_df, color='b', output_file=patient_log_file)
+    print_color(considered_file_df['File Size in GB'].dtype, color='b', output_file=patient_log_file)
 
     combined_files_size = considered_file_df['File Size in GB'].sum()
     # combined_files_size = bytes_to_gb(files_size)
 
-    print_color(combined_files_size, color='p')
+    print_color(combined_files_size, color='p', output_file=patient_log_file)
 
     return combined_files_size
 
@@ -851,7 +858,7 @@ def create_index(html_path, pdf_path, folder_name, file_list, excluded_file_list
 
 
 def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, export_folder_name, folder_name, extension_list,
-                       processed_folder_id, response_folder_id, folder_id):
+                       processed_folder_id, record_input_folder_id, folder_id, patient_log_file):
     pdf_writer = PyPDF2.PdfWriter()
     combined_pdf_file = f'{export_folder_name}\\{folder_name} Combined Draft.pdf'
     if os.path.exists(combined_pdf_file):
@@ -871,16 +878,16 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
         size = each_file.get("size")
         created_time =  each_file.get("created_time")
         if file_extension in extension_list:
-            print_color(size, color='y')
+            print_color(size, color='y', output_file=patient_log_file)
             export_file_name = f'{export_folder_name}\\{file_name}'
-            print_color(export_file_name, color='y')
+            print_color(export_file_name, color='y', output_file=patient_log_file)
             if file_extension in ["jpg", "jpeg", "png"]:
                 if int(size) < 1000:
-                    print_color(f'Image is less than 1 KB so will ignore file', color='r')
+                    print_color(f'Image is less than 1 KB so will ignore file', color='r', output_file=patient_log_file)
                     return
 
             GdriveAPI.download_file(file_id=file_id, file_name=export_file_name)
-            print_color(export_file_name, color='g')
+            print_color(export_file_name, color='g', output_file=patient_log_file)
             if file_extension.lower() == 'doc':
                 new_file_path = f'{".doc".join(export_file_name.split(".doc")[:-1])}.docx'
                 convert_doc_to_docx(doc_path=export_file_name, docx_path=new_file_path)
@@ -894,10 +901,10 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
             # print_color(file_details, color='y')
             # print_color(merged_files, color='y')
             if file_details in merged_files:
-                print_color(f'File Already Exists and is a duplicate. Will not merge', color='r')
+                print_color(f'File Already Exists and is a duplicate. Will not merge', color='r', output_file=patient_log_file)
             else:
                 merged_files.append(file_details)
-                print_color(f'File Merged into Combined PDF', color='g')
+                print_color(f'File Merged into Combined PDF', color='g', output_file=patient_log_file)
                 if file_extension != "pdf":
                     converted_export_file_name = f'{".".join(export_file_name.split(".")[:-1])}.pdf'
                     if file_extension in ['doc', 'docx']:
@@ -934,11 +941,11 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
     html_path = f'{export_folder_name}\\index.html'
     pdf_path = f'{export_folder_name}\\index.pdf'
 
-    print_color(len(file_list), color='y')
+    print_color(len(file_list), color='y', output_file=patient_log_file)
 
     if len(file_list) >0:
         page_count = create_index(html_path, pdf_path, folder_name, file_list, excluded_file_list)
-        print_color(merger, color='y')
+        print_color(merger, color='y', output_file=patient_log_file)
         # merger.write(combined_pdf_file)
         merger.save(combined_pdf_file)
         merger.close()
@@ -953,28 +960,28 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
         new_merger.write(final_combined_pdf_file)
         new_merger.close()
 
-        print_color('PDF Merged', color='y')
-        upload_folder_id = response_folder_id
+        print_color('PDF Merged', color='y', output_file=patient_log_file)
+        upload_folder_id = record_input_folder_id
         # upload_folder_id = folder_id
 
         '''check if a combined file already exists. if so, delete'''
         final_upload_file_name = f'{folder_name} Combined {page_count}.pdf'
-        all_files = GdriveAPI.get_files(folder_id=response_folder_id)
+        all_files = GdriveAPI.get_files(folder_id=record_input_folder_id)
         all_files = [x for x in all_files if x.get("name") == final_upload_file_name]
         if len(all_files) >0:
             GdriveAPI.delete_file(file_id=all_files[0].get("id"), file_name=final_upload_file_name)
         ''' Turned off upload Merge File before OCR'''
 
-        print_color(final_upload_file_name, color='b')
-        print_color(final_combined_pdf_file, color='y')
-        print_color(upload_folder_id, color='y')
+        print_color(final_upload_file_name, color='b', output_file=patient_log_file)
+        print_color(final_combined_pdf_file, color='y', output_file=patient_log_file)
+        print_color(upload_folder_id, color='y', output_file=patient_log_file)
 
-        GdriveAPI.upload_file(folder_id=upload_folder_id, file_name=final_upload_file_name,
-                              file_path=final_combined_pdf_file)
+        # GdriveAPI.upload_file(folder_id=upload_folder_id, file_name=final_upload_file_name,
+        #                       file_path=final_combined_pdf_file)
 
         return final_combined_pdf_file, final_upload_file_name
 
-def  ocr_conversion(x, GdriveAPI, upload_folder_id, combined_pdf_file, upload_file_name):
+def  ocr_conversion(x, GdriveAPI, upload_folder_id, combined_pdf_file, upload_file_name, patient_log_file):
     ocr_directory = x.ocr_directory
     ocr_settings = x.ocr_setting
 
@@ -983,12 +990,12 @@ def  ocr_conversion(x, GdriveAPI, upload_folder_id, combined_pdf_file, upload_fi
     extended_ouput = f'{output_directory}\\{output_filename}'
     command = f'"{combined_pdf_file}" /output:"{extended_ouput}" /settings:"{ocr_settings}"'
     extended_command = f'"{ocr_directory}\\FileToPDF" {command}'
-    print_color(command, color='y')
-    print_color(extended_command, color='b')
+    print_color(command, color='y', output_file=patient_log_file)
+    print_color(extended_command, color='b', output_file=patient_log_file)
     # result = subprocess.run([ocr_directory, ocr_settings], text=True)
     # os.system(extended_command)
     result = subprocess.run(extended_command)
-    print_color(result, color='g')
+    print_color(result, color='g', output_file=patient_log_file)
 
     all_files = GdriveAPI.get_files(folder_id=upload_folder_id)
     all_files = [x for x in all_files if x.get("name") == output_filename]
@@ -1001,9 +1008,9 @@ def  ocr_conversion(x, GdriveAPI, upload_folder_id, combined_pdf_file, upload_fi
 
 
 # @error_handler
-def process_individual_folder(x, engine, i, response_folder_id, processed_inputs_folder_id, df, merge_process_df,
+def process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
                               file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
-                              prefix_exclusion_list, images_extension_list):
+                              prefix_exclusion_list, images_extension_list, patient_log_file):
 
     folder_id = df['Folder_ID'].iloc[i]
     folder_name = df['Folder_Name'].iloc[i].strip()
@@ -1015,7 +1022,7 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
     export_folder_name = f'{file_export}\\{folder_name}'
     create_folder(export_folder_name)
 
-    print_color(f'{i}/{df.shape[0]} Getting files for {folder_id}: {folder_name}')
+    print_color(f'{i}/{df.shape[0]} Getting files for {folder_id}: {folder_name}', output_file=patient_log_file)
     folder_files = GdriveAPI.get_files(folder_id)
     get_folder_sub_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
     folder_files = [x for x in folder_files if x.get("trashed") == False]
@@ -1042,7 +1049,7 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
                                                                            ''']
     run_sql_scripts(engine=engine, scripts=scripts)
 
-    print_color(folder_files, color='y')
+    print_color(folder_files, color='y', output_file=patient_log_file)
     print(f'Folder Count {len(folder_files)}', f'Processed Folder Count {len(get_folder_sub_folders)}')
     if len(folder_files) == 0 and len(get_folder_sub_folders) == 0:
         GdriveAPI.delete_folder(folder_id=folder_id, folder_name=folder_name)
@@ -1060,10 +1067,10 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
         file_id = each_file.get("id")
         file_extension = each_file.get("name").split(".")[-1]
 
-        print_color(folder_name, color='g')
+        print_color(folder_name, color='g', output_file=patient_log_file)
         new_file_name = f'{folder_name}.{file_extension}'
         GdriveAPI.rename_file(file_id=file_id, new_file_name=new_file_name)
-        GdriveAPI.move_file(file_id=file_id, new_folder_id=response_folder_id)
+        GdriveAPI.move_file(file_id=file_id, new_folder_id=record_input_folder_id)
         GdriveAPI.delete_folder(folder_id=folder_id, folder_name=folder_name)
         scripts = []
         scripts.append(f'Delete from folders where Folder_ID = "{folder_id}"')
@@ -1071,7 +1078,7 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
         run_sql_scripts(engine=engine, scripts=scripts)
 
     else:
-        print_color(folder_files, color='y')
+        print_color(folder_files, color='y', output_file=patient_log_file)
         '''Step 1 - Check if there are files that we already processed'''
         '''Step 2 - Check if there are folders in the folder. If so unpack files into main folder'''
         '''Step 3 - Unzip any Zip Files *'''
@@ -1086,7 +1093,7 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
         '''Step 10 - OCR Process'''
         '''Step 11 - Upload Data to Google Sheets'''
 
-
+        print_color('''Step 1 - Check if there are files that we already processed''', color='r', output_file=patient_log_file)
         processed_folder_id = None
         all_images_folder_id = None
         processed_images_folder_id = None
@@ -1095,7 +1102,7 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
         folder_exclusions = []
 
         child_folders = [x for x in child_folders if x.get("trashed") is False]
-        print_color(child_folders, color='y')
+        print_color(child_folders, color='y', output_file=patient_log_file)
         for each_folder in child_folders:
             if "Processed Files" in each_folder.get("name"):
                 processed_folder_id = each_folder.get("id")
@@ -1113,52 +1120,58 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
             processed_folder_id = GdriveAPI.create_folder(folder_name='Processed Files', parent_folder=folder_id)
 
         '''Step 2 - Check if there are folders in the folder. If so unpack files into main folder'''
-
+        print_color('''Step 2 - Check if there are folders in the folder. If so unpack files into main folder''', color='r', output_file=patient_log_file)
         additional_child_folders = [x for x in child_folders if x.get("name") != 'Processed Files' \
                                     and x.get("name") != 'Processed Images'
                                     and x.get("name") != 'All Images']
-        print_color(additional_child_folders, color='y')
+        print_color(additional_child_folders, color='y', output_file=patient_log_file)
         excluded_folders = unpack_child_folders(GdriveAPI=GdriveAPI, parent_folder=folder_id,
                                                 processed_folder_id=processed_folder_id,
                                                 child_folders=additional_child_folders,
                                                 extension_exclusion_list=extension_exclusion_list,
-                                                prefix_exclusion_list=prefix_exclusion_list)
+                                                prefix_exclusion_list=prefix_exclusion_list,
+                                                patient_log_file=patient_log_file)
         excluded_folder_name = [x.get("name") for x in excluded_folders]
         folder_exclusions.extend(excluded_folder_name)
-        print_color(excluded_folders, color='y')
+        print_color(excluded_folders, color='y', output_file=patient_log_file)
 
 
         '''Step 3 - Unzip any Zip Files *'''
+        print_color('''Step 3 - Unzip any Zip Files *''',color='r', output_file=patient_log_file)
+
         for each_file in folder_files:
             file_extension = each_file.get("file_extension")
             file_id = each_file.get("id")
             # pprint.pprint(GdriveAPI.get_file_data(file_id))
             file_name = each_file.get("name")
             extended_file_name = f'{file_export}\\{file_name}'
-            print_color(each_file, color='g')
+            print_color(each_file, color='g', output_file=patient_log_file)
 
             if file_extension == 'zip':
                 zip_exclusions = process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id,
                                                    file_name, extended_file_name,
                                                    viewable_files, folder_files, extension_list,
-                                                   extension_exclusion_list, prefix_exclusion_list)
+                                                   extension_exclusion_list, prefix_exclusion_list, patient_log_file)
                 folder_exclusions.extend(zip_exclusions)
                 scripts = [f'''update merge_process set Zip_File_Unpacked = True where Folder_ID ="{folder_id}" ''']
                 run_sql_scripts(engine=engine, scripts=scripts)
 
         '''Step 4 - For Files Already Process get file content'''
+        print_color('''Step 4 - For Files Already Process get file content''', color='r', output_file=patient_log_file)
         processed_folder_files = GdriveAPI.get_files(processed_folder_id)
         processed_folder_files = [x for x in processed_folder_files if x.get("trashed") == False]
 
         '''Step 5 - Get Files from Original Folder with New Zipped Files'''
+        print_color( '''Step 5 - Get Files from Original Folder with New Zipped Files''', color='r', output_file=patient_log_file)
         folder_files = GdriveAPI.get_files(folder_id)
         folder_files = [x for x in folder_files if x.get("trashed") == False]
-        print_color(folder_files, color='b')
+        print_color(folder_files, color='b', output_file=patient_log_file)
         if len(folder_files) == 0 and len(processed_folder_files) == 0:
-            print_color(f'No New Files to Process', color='r')
+            print_color(f'No New Files to Process', color='r', output_file=patient_log_file)
             return
         # print_color(folder_exclusions, color='r')
         '''Step 6 - Combine Processed and Unprocessed Files'''
+        print_color('''Step 6 - Combine Processed and Unprocessed Files''', color='r', output_file=patient_log_file)
         folder_files = folder_files + processed_folder_files
         folder_files = [x for x in folder_files if x.get("trashed") == False]
         excluded_files = [x for x in folder_files if x.get("file_extension").lower() not in extension_list and x.get(
@@ -1168,11 +1181,11 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
         folder_files = [x for x in folder_files if not x.get("name").startswith("._")]
         updated_folder_files = [x for x in folder_files if x.get("file_extension").lower() not in images_extension_list]
         image_files = [x for x in folder_files if x.get("file_extension").lower() in images_extension_list]
-        print_color(image_files, color='p')
+        print_color(image_files, color='p', output_file=patient_log_file)
         # '''Step 3.5 Move All Images to Image Folder / Move top 50 sorted by file Size to Processed Folder'''
         sorted_image_files = sort_image_files(image_files)
 
-        print_color(f'inaccessible_files {len(inaccessible_files)}', color='y')
+        print_color(f'inaccessible_files {len(inaccessible_files)}', color='y', output_file=patient_log_file)
         if len(inaccessible_files) > 0:
             if inaccessible_files_folder_id is None:
                 inaccessible_files_folder_id = GdriveAPI.create_folder(folder_name='Inaccessible Files',
@@ -1181,45 +1194,50 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
                 print_color(f'{k}/{len(inaccessible_files)}', color='g')
                 GdriveAPI.move_file(file_id=each_file.get("id"), new_folder_id=inaccessible_files_folder_id)
 
-        print_color(f'Image Files {len(sorted_image_files)}', color='g')
+        print_color(f'Image Files {len(sorted_image_files)}', color='g', output_file=patient_log_file)
         if len(sorted_image_files) > 0:
             if len(sorted_image_files) > 50:
                 if all_images_folder_id is None:
                     all_images_folder_id = GdriveAPI.create_folder(folder_name='All Images', parent_folder=folder_id)
                 for k, each_image in enumerate(sorted_image_files[50:]):
-                    print_color(f'{k}/{len(sorted_image_files[50:])}', color='g')
+                    print_color(f'{k}/{len(sorted_image_files[50:])}', color='g', output_file=patient_log_file)
                     GdriveAPI.move_file(file_id=each_image.get("id"), new_folder_id=all_images_folder_id)
 
             if processed_images_folder_id is None:
                 processed_images_folder_id = GdriveAPI.create_folder(folder_name='Processed Images',
                                                                      parent_folder=folder_id)
             for k, each_image in enumerate(sorted_image_files[:50]):
-                print_color(f'{k}/{len(sorted_image_files[:50])}', color='g')
+                print_color(f'{k}/{len(sorted_image_files[:50])}', color='g', output_file=patient_log_file)
                 GdriveAPI.move_file(file_id=each_image.get("id"), new_folder_id=processed_images_folder_id)
 
         '''Step 7 - Sort File By File Number - Create Date'''
+        print_color('''Step 7 - Sort File By File Number - Create Date''', color='r', output_file=patient_log_file)
+
         sorted_files = sort_files(updated_folder_files)
-        print_color(sorted_files, color='y')
+        print_color(sorted_files, color='y', output_file=patient_log_file)
+
         '''Step 8 - Get combined size of all unique files'''
-        combined_files_size = get_file_size(sorted_files, extension_list)
+        print_color('''Step 8 - Get combined size of all unique files''', color='r', output_file=patient_log_file)
+        combined_files_size = get_file_size(sorted_files, extension_list, patient_log_file)
 
         '''Step 9 - Merge Files To one PDF'''
+        print_color( '''Step 9 - Merge Files To one PDF''', color='r', output_file=patient_log_file)
         # print_color(len(sorted_files),color='y')
         if combined_files_size > .80:
-            print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r')
+            print_color(f'Combined File Size in folder exceed Allowed Size to run', color='r', output_file=patient_log_file)
             scripts = [f'''update merge_process set Folder_To_Large_To_Combine = True where Folder_ID ="{folder_id}" ''']
             run_sql_scripts(engine=engine, scripts=scripts)
         else:
             final_combined_pdf_file, final_upload_file_name = merge_to_pdf(GdriveAPI, sorted_files, excluded_files,
                        folder_exclusions, export_folder_name, folder_name,extension_list, processed_folder_id,
-                                       response_folder_id, folder_id)
-            print_color(final_combined_pdf_file, color='g')
-            print_color(final_upload_file_name, color='y')
-            ocr_conversion(x, GdriveAPI, response_folder_id, final_combined_pdf_file, final_upload_file_name)
+                                       record_input_folder_id, folder_id, patient_log_file)
+            print_color(final_combined_pdf_file, color='g', output_file=patient_log_file)
+            print_color(final_upload_file_name, color='y', output_file=patient_log_file)
+            ocr_conversion(x, GdriveAPI, record_input_folder_id, final_combined_pdf_file, final_upload_file_name, patient_log_file)
 
 
-            print_color(folder_id, color='g')
-            print_color(processed_inputs_folder_id, color='g')
+            print_color(folder_id, color='g', output_file=patient_log_file)
+            print_color(processed_inputs_folder_id, color='g', output_file=patient_log_file)
             scripts = []
             scripts.append(
                 f'Update folders set PDF_File_Processed = True, New_Files_Imported=null where Folder_ID = "{folder_id}"')
@@ -1240,11 +1258,16 @@ def process_individual_folder(x, engine, i, response_folder_id, processed_inputs
             run_sql_scripts(engine=engine, scripts=scripts)
 
         '''Step 10 - Update Google Sheet'''
+        print_color('''Step 10 - Update Google Sheet''', color='r', output_file=patient_log_file)
         map_files_and_folders_to_google_drive(engine, GsheetAPI)
 
 
 
-def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, processed_inputs_folder_id):
+def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id, processed_inputs_folder_id, main_log_file, merge_log_output_folder):
+    print_color( '''PROCESS FOLDERS THAT NEED TO BE MERGED TO A PDF''', color='k', output_file=main_log_file)
+    patient_log_output_folder = f'{merge_log_output_folder}\\Patient Logs'
+    create_folder(patient_log_output_folder)
+
     numbers = number_list()
     file_export = f'{x.project_folder}\\Record Inputs'
     create_folder(file_export)
@@ -1261,18 +1284,29 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, response_folder_id, pr
     ''', con=engine)
     merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
 
-    print_color(df, color='r')
+    print_color(df, color='r', output_file=main_log_file)
 
     for i in range(df.shape[0]):
-        try:
-            process_individual_folder(x, engine, i, response_folder_id, processed_inputs_folder_id, df, merge_process_df,
-                                  file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
-                                  prefix_exclusion_list, images_extension_list)
-        except Exception as e:
-            print_color(e, color='r')
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+        folder_name = df['Folder_Name'].iloc[i]
+        patient_log_file = f'{patient_log_output_folder}\\{folder_name} {now}.txt'
 
+        try:
+            process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
+                                  file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
+                                  prefix_exclusion_list, images_extension_list, patient_log_file)
+        except Exception as e:
+            print_color(e, color='r', output_file=patient_log_file)
+        break
 
 def merge_files_to_pdf(x, environment):
+    log_output_folder = x.log_output_folder
+    create_folder(log_output_folder)
+    merge_log_output_folder = f'{log_output_folder}\\Merge Logs'
+    create_folder(merge_log_output_folder)
+
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+    main_log_file = f'{merge_log_output_folder}\\Merge Logs {now}.html'
     engine = engine_setup(hostname=x.hostname, username=x.username, password=x.password, port=x.port)
     engine_1 = engine_setup(project_name=x.project_name, hostname=x.hostname, username=x.username, password=x.password,
                             port=x.port)
@@ -1286,17 +1320,17 @@ def merge_files_to_pdf(x, environment):
                                scopes=x.gsheet_scopes, sheet_id=x.google_sheet_merge_process)
 
     folder_id = x.mle_folder
-    print_color(folder_id, color='b')
+    print_color(f'folder_id: {folder_id}', color='b', output_file=main_log_file)
     child_folders = GdriveAPI.get_child_folders(folder_id=folder_id)
     for each_folder in child_folders:
         if each_folder.get("name") == 'RECORD-INPUT':
-            response_folder_id = each_folder.get("id")
+            record_input_folder_id = each_folder.get("id")
             break
 
-    sub_child_folders = GdriveAPI.get_child_folders(folder_id=response_folder_id)
-    print_color(sub_child_folders, color='r')
+    print_color(f'Record Input folder ID {record_input_folder_id}', color='y', output_file=main_log_file)
+    sub_child_folders = GdriveAPI.get_child_folders(folder_id=record_input_folder_id)
     sub_child_folders = [x for x in sub_child_folders if x.get("trashed") is False]
-    # print_color(sub_child_folders, color='g')
+    print_color(f'Record Input Folders {sub_child_folders}', color='r', output_file=main_log_file)
 
     processed_folder_id = None
     for each_folder in sub_child_folders:
@@ -1305,28 +1339,29 @@ def merge_files_to_pdf(x, environment):
             sub_child_folders.remove(each_folder)
             break
 
-
-    print_color(response_folder_id, color='y')
-    print_color(processed_folder_id, color='y')
+    print_color(f'Processed Folder ID {processed_folder_id}', color='y', output_file=main_log_file)
+    run_sql_scripts(engine=engine_1, scripts=[f'Truncate folders;'])
 
     '''GET DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
+
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, record_input_folder_id, sub_child_folders, processed_folder_id, main_log_file=main_log_file)
     '''RENAME FOLDERS THAT ARE NOT FORMATTED PROPERLY'''
-    rename_existing_folders(GdriveAPI, existing_patient_folders)
+
+    rename_existing_folders(GdriveAPI, existing_patient_folders, main_log_file)
     '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, record_input_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True, main_log_file=main_log_file)
     '''MERGE FOLDERS THAT HAVE THE SAME NAME'''
-    merge_existing_folders(GdriveAPI, existing_patient_folders, response_folder_id)
+    merge_existing_folders(GdriveAPI, existing_patient_folders, record_input_folder_id, main_log_file)
     '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id)
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, record_input_folder_id, sub_child_folders, processed_folder_id, main_log_file=main_log_file)
     '''MAP FOLDERS TO SQL'''
-    import_new_folders(engine_1, database_name, existing_patient_folders)
+    import_new_folders(engine_1, database_name, existing_patient_folders, main_log_file)
     '''GET UPDATED DICT OF ALL FOLDERS IN RECORD-INPUT'''
-    existing_patient_folders = get_existing_patient_folders(GdriveAPI, response_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True)
+    existing_patient_folders = get_existing_patient_folders(GdriveAPI, record_input_folder_id, sub_child_folders, processed_folder_id, include_processed_folders=True, main_log_file=main_log_file)
     '''MAP / MOVE NEW FILES IN RECORD INPUT'''
-    process_new_files(engine_1, GdriveAPI, response_folder_id, existing_patient_folders)
+    process_new_files(engine_1, GdriveAPI, record_input_folder_id, existing_patient_folders, main_log_file)
     '''PROCESS FOLDERS THAT NEED TO BE MERGED TO A PDF'''
-    process_open_folders(x, engine_1, GdriveAPI, GsheetAPI, response_folder_id, processed_folder_id)
+    process_open_folders(x, engine_1, GdriveAPI, GsheetAPI, record_input_folder_id, processed_folder_id, main_log_file, merge_log_output_folder)
     '''MAP MERGE PROCESS TO GOOGLE SHEETS'''
 
 

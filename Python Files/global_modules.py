@@ -60,6 +60,7 @@ class ProgramCredentials:
         self.email_sender = f['email_sender']
 
         self.mle_folder = f['mle_folder']
+        self.log_output_folder = f['log_output_folder'].replace("%USERNAME%", getpass.getuser())
 
         self.google_sheet_published = f['google_sheet_published']
         self.google_sheet_form_responses = f['google_sheet_form_responses']
@@ -100,10 +101,21 @@ class ProgramCredentials:
         return params
 
 
-def print_color(*text, color='', _type='', output_file=None):
+def print_color(*text, color='k', _type='', output_file=None):
     ''' color_choices = ['r','g','b', 'y']
         _type = ['error','warning','success','sql','string','df','list']
     '''
+
+    colors = {
+        'r': '#FF0000',  # Red
+        'g': '#00FF00',  # Green
+        'y': '#FFA500',  # Yellow
+        'b': '#0000FF',  # Blue
+        'p': '#FFC0CB',  # Pink
+        'w': '#FFFFFF',  # White
+        'k': '#000000'  # Black
+    }
+
     color = color.lower()
     _type = _type.lower()
 
@@ -122,22 +134,37 @@ def print_color(*text, color='', _type='', output_file=None):
     else:
         crayon_color = crayons.normal
 
-
     print(*map(crayon_color, text))
+    print(', '.join(map(str, text)))
+
     if output_file is not None:
-        # print(output_file)
-        # print(os.path.exists(output_file))
         if os.path.exists(output_file) is False:
-            # print("Right Here")
-            file1 = open(output_file, 'w')
-            file1.writelines(f'#################\n')
-            file1.close()
-            # file1 = open(output_file, 'w')
-            # file1.close()
-        # print(os.path.exists(output_file))
-        file1 = open(output_file, 'a')
-        file1.writelines(f'{str(text)}\n')
-        file1.close()
+            with open(output_file, 'w') as file:
+                file.write('<!DOCTYPE html>\n<html>\n<head>\n<title>Colored Text</title>\n</head>\n<body>\n')
+
+            # Open the output file for appending
+        with open(output_file, 'a') as file:
+            # Write the text with inline CSS for color
+            unpacked_text = ', '.join(map(str, text))
+            color_hex = colors[color]
+            file.write(f'<p style="color: {color_hex}">{unpacked_text}</p>\n')
+
+
+
+    # if output_file is not None:
+    #     # print(output_file)
+    #     # print(os.path.exists(output_file))
+    #     if os.path.exists(output_file) is False:
+    #         # print("Right Here")
+    #         file1 = open(output_file, 'w')
+    #         file1.writelines(f'#################\n')
+    #         file1.close()
+    #         # file1 = open(output_file, 'w')
+    #         # file1.close()
+    #     # print(os.path.exists(output_file))
+    #     file1 = open(output_file, 'a')
+    #     file1.writelines(f'{colors[color]}{str(*text)}{colors["reset"]}\n')
+    #     file1.close()
         # print("Here")
 
 
