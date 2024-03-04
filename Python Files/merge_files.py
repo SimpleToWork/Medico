@@ -1297,7 +1297,7 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
                                   prefix_exclusion_list, images_extension_list, patient_log_file)
         except Exception as e:
             print_color(e, color='r', output_file=patient_log_file)
-        break
+        # break
 
 def merge_files_to_pdf(x, environment):
     log_output_folder = x.log_output_folder
