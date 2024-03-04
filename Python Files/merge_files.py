@@ -1289,7 +1289,7 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
     for i in range(df.shape[0]):
         now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
         folder_name = df['Folder_Name'].iloc[i]
-        patient_log_file = f'{patient_log_output_folder}\\{folder_name} {now}.txt'
+        patient_log_file = f'{patient_log_output_folder}\\{folder_name} {now}.html'
 
         try:
             process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
