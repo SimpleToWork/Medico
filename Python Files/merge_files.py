@@ -1340,7 +1340,7 @@ def merge_files_to_pdf(x, environment):
             break
 
     print_color(f'Processed Folder ID {processed_folder_id}', color='y', output_file=main_log_file)
-    run_sql_scripts(engine=engine_1, scripts=[f'Truncate folders;'])
+    # run_sql_scripts(engine=engine_1, scripts=[f'Truncate folders;'])
 
     '''GET DICT OF ALL FOLDERS IN RECORD-INPUT'''
 
