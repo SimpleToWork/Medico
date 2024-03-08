@@ -1281,7 +1281,7 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
     df = pd.read_sql(f'''Select * from folders where (New_Files_Imported is null or New_Files_Imported = 1)
         and (PDF_File_Processed != 1 or PDF_File_Processed is null)
         and Folder_Name not in ("1 - Folders For Review With Alan", "Processed Inputs", "Doubt Files", "Old Reports", "Repeat Files")
-        and Folder_Name in ("2024.03.14, Kulak, Aaron")
+--         and Folder_Name in ("2024.03.14, Kulak, Aaron")
         order by Folder_Name
     ''', con=engine)
     merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
@@ -1293,12 +1293,12 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
         folder_name = df['Folder_Name'].iloc[i]
         patient_log_file = f'{patient_log_output_folder}\\{folder_name} {now}.html'
 
-        # try:
-        process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
-                              file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
-                              prefix_exclusion_list, images_extension_list, patient_log_file)
-        # except Exception as e:
-        #     print_color(e, color='r', output_file=patient_log_file)
+        try:
+            process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
+                                  file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
+                                  prefix_exclusion_list, images_extension_list, patient_log_file)
+        except Exception as e:
+            print_color(e, color='r', output_file=patient_log_file)
         # break
 
 def merge_files_to_pdf(x, environment):
