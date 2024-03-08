@@ -879,7 +879,8 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
         created_time =  each_file.get("created_time")
         if file_extension in extension_list:
             print_color(size, color='y', output_file=patient_log_file)
-            export_file_name = f'{export_folder_name}\\{file_name}'
+            adjusted_file_name = f'{file_name.split(".pdf")[0][:252]}.{file_extension}' if len(file_name)  >256 else file_name
+            export_file_name = f'{export_folder_name}\\{adjusted_file_name}'
             print_color(export_file_name, color='y', output_file=patient_log_file)
             if file_extension in ["jpg", "jpeg", "png"]:
                 if int(size) < 1000:
