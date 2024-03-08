@@ -872,7 +872,7 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
 
     for each_file in sorted_files:
         file_id = each_file.get("id")
-        file_name = each_file.get("name").replace(":","-")
+        file_name = each_file.get("name").replace(":","-").replace("@","")
         core_file_name = each_file.get("core_file_name")
         file_extension = each_file.get("file_extension").lower()
         size = each_file.get("size")
