@@ -34,3 +34,4 @@ pywin32
 pdf2image
 python-poppler
 ImageHash
+pycryptodome
