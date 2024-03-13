@@ -897,13 +897,27 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
                 file_extension = 'docx'
             if file_extension.lower() in ['docx']:
                 page_count = get_docx_page_count(export_file_name)
+                password_protected = False
             elif file_extension.lower() in ['pdf']:
-                page_count = get_pdf_page_count(export_file_name)
+                try:
+                    page_count = get_pdf_page_count(export_file_name)
+                    password_protected = False
+                except Exception as e:
+                    print_color(str(e), color='r', output_file=patient_log_file)
+                    if "File has not been decrypted" in str(e):
+                        print_color(f'File is Password Protected', color='r', output_file=patient_log_file)
+
+                        excluded_files.append(each_file)
+                        password_protected = True
+                    page_count = None
+
+
             file_details = f'{core_file_name}, {file_extension}, {size}, {page_count}'
             # print_color(file_details, color='y')
             # print_color(merged_files, color='y')
             if file_details in merged_files:
                 print_color(f'File Already Exists and is a duplicate. Will not merge', color='r', output_file=patient_log_file)
+                GdriveAPI.move_file(file_id=file_id, new_folder_id=processed_folder_id)
             else:
                 merged_files.append(file_details)
                 print_color(f'File Merged into Combined PDF', color='g', output_file=patient_log_file)
@@ -917,15 +931,16 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
                 else:
                     adjusted_export_file_name = export_file_name
 
-                pdf_document = fitz.open(adjusted_export_file_name)
-                merger.insert_pdf(pdf_document)
+                if password_protected is False:
+                    pdf_document = fitz.open(adjusted_export_file_name)
+                    merger.insert_pdf(pdf_document)
 
-                # merger.append(adjusted_export_file_name)
+                    # merger.append(adjusted_export_file_name)
 
-                file_list.append((file_name, start_page, page_count, size, created_time))
-                start_page += page_count
+                    file_list.append((file_name, start_page, page_count, size, created_time))
+                    start_page += page_count
 
-            GdriveAPI.move_file(file_id=file_id, new_folder_id=processed_folder_id)
+                    GdriveAPI.move_file(file_id=file_id, new_folder_id=processed_folder_id)
 
     excluded_file_list = []
     for each_file in excluded_files:
@@ -1281,7 +1296,7 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
     df = pd.read_sql(f'''Select * from folders where (New_Files_Imported is null or New_Files_Imported = 1)
         and (PDF_File_Processed != 1 or PDF_File_Processed is null)
         and Folder_Name not in ("1 - Folders For Review With Alan", "Processed Inputs", "Doubt Files", "Old Reports", "Repeat Files")
-        and Folder_Name in ("2024.03.13, jennings, karen")
+        and Folder_Name in ("2024.05.22, Lobue, Giovanni")
         order by Folder_Name
     ''', con=engine)
     merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
@@ -1293,13 +1308,13 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
         folder_name = df['Folder_Name'].iloc[i]
         patient_log_file = f'{patient_log_output_folder}\\{folder_name} {now}.html'
 
-        try:
-            process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
-                                  file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
-                                  prefix_exclusion_list, images_extension_list, patient_log_file)
-        except Exception as e:
-            print_color(f'An Error Occurred', color='r', output_file=patient_log_file)
-            print_color(e, color='r', output_file=patient_log_file)
+        # try:
+        process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
+                              file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
+                              prefix_exclusion_list, images_extension_list, patient_log_file)
+        # except Exception as e:
+        #     print_color(f'An Error Occurred', color='r', output_file=patient_log_file)
+        #     print_color(e, color='r', output_file=patient_log_file)
         # break
 
 def merge_files_to_pdf(x, environment):
