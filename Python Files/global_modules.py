@@ -58,6 +58,7 @@ class ProgramCredentials:
         self.gmail_token_file = f['gmail_token_file'].replace("%USERNAME%", getpass.getuser())
         self.gmail_scopes = f['gmail_scopes']
         self.email_sender = f['email_sender']
+        self.notification_email = f['notification_email']
 
         self.mle_folder = f['mle_folder']
         self.log_output_folder = f['log_output_folder'].replace("%USERNAME%", getpass.getuser())
@@ -135,7 +136,7 @@ def print_color(*text, color='k', _type='', output_file=None):
         crayon_color = crayons.normal
 
     print(*map(crayon_color, text))
-    print(', '.join(map(str, text)))
+    # print(', '.join(map(str, text)))
 
     if output_file is not None:
         if os.path.exists(output_file) is False:

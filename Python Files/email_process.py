@@ -3,8 +3,9 @@ import datetime
 import pandas as pd
 from google_drive_class import GoogleDriveAPI
 from google_sheets_api import GoogleSheetsAPI
+
 from gmail_api import GoogleGmailAPI
-from global_modules import print_color, create_folder
+from global_modules import print_color, create_folder, error_handler
 
 
 import docx2txt
@@ -466,13 +467,16 @@ def email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_f
         # break
 
 
-def run_email_process(x, environment):
+def run_full_process(x, environment):
     sheet_id = x.google_sheet_published
     auto_publish_sheet_name = x.auto_publish_sheet_name
 
-    GdriveAPI = GoogleDriveAPI(credentials_file=x.drive_credentials_file, token_file=x.drive_token_file, scopes=x.drive_scopes)
-    GsheetAPI = GoogleSheetsAPI(credentials_file=x.gsheet_credentials_file, token_file=x.gsheet_token_file, scopes=x.gsheet_scopes,sheet_id=sheet_id)
-    GmailAPI = GoogleGmailAPI(credentials_file=x.gmail_credentials_file, token_file=x.gmail_token_file, scopes=x.gmail_scopes)
+    GdriveAPI = GoogleDriveAPI(credentials_file=x.drive_credentials_file, token_file=x.drive_token_file,
+                               scopes=x.drive_scopes)
+    GsheetAPI = GoogleSheetsAPI(credentials_file=x.gsheet_credentials_file, token_file=x.gsheet_token_file,
+                                scopes=x.gsheet_scopes, sheet_id=sheet_id)
+    GmailAPI = GoogleGmailAPI(credentials_file=x.gmail_credentials_file, token_file=x.gmail_token_file,
+                              scopes=x.gmail_scopes)
 
     folder_name = x.published_folder
     folders = GdriveAPI.get_drive_folder(folder_name=folder_name)
@@ -497,7 +501,32 @@ def run_email_process(x, environment):
     move file from auto publish folder to storage folder
     update google sheet accordingly    
     '''
-    email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name, child_folder_id)
+    email_approved_files(x, environment, GdriveAPI, GsheetAPI, GmailAPI, child_folders, auto_publish_sheet_name,
+                         child_folder_id)
 
+
+def run_email_process(x, environment):
+    GmailAPI = GoogleGmailAPI(credentials_file=x.gmail_credentials_file, token_file=x.gmail_token_file,
+                              scopes=x.gmail_scopes)
+
+    try:
+        run_full_process(x, environment)
+    except Exception as error:
+        now = datetime.datetime.now().strftime("%Y-%m-%d")
+        error_message = f"{type(error).__name__}, {error}"
+
+        email_body = \
+        f'''Hello,    
+          <br><br>An Error Occurred on The Email Process. 
+          <br>See Error Below
+          <br><span style="color:Red;font-weight:Bold; ">{str(error_message)}</span> 
+
+          <br><br>Thank you,
+          <br><br>This is an automatically generated email.
+          '''
+        print_color(error_message, color='y')  # An error occurred: NameError
+        GmailAPI.send_email(email_to=", ".join(x.notification_email), email_sender=x.email_sender,
+                            email_subject=f'Email Process Error {now}', email_cc=None, email_bcc=None,
+                            email_body=email_body)
 
 
