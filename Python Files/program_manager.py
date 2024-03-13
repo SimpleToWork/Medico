@@ -37,9 +37,9 @@ if __name__ == '__main__':
     wait_time = random.randint(3, 35)
     computer = getpass.getuser()
 
-    if computer != "Ricky":
-        print_color(f'Waiting {wait_time} seconds to start', color='y')
-        for i in tqdm(range(wait_time)):
-            time.sleep(1)
+    # if computer != "Ricky":
+    #     print_color(f'Waiting {wait_time} seconds to start', color='y')
+    #     for i in tqdm(range(wait_time)):
+    #         time.sleep(1)
 
     run_program(environment, function_to_run)
