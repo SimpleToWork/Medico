@@ -23,13 +23,13 @@ def run_program(environment, function_to_run):
     elif function_to_run == 'Merge Files':
         merge_files_to_pdf(x, environment)
 
-    # record_program_performance(x, program_name="Medico", method=function_to_run)
+    record_program_performance(x, program_name="Medico", method=function_to_run)
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         environment = 'production'
-        function_to_run = 'Merge Files'
+        function_to_run = 'Email Process'
     else:
         environment = sys.argv[1]
         function_to_run = sys.argv[2]
