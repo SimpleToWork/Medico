@@ -1296,7 +1296,7 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
     df = pd.read_sql(f'''Select * from folders where (New_Files_Imported is null or New_Files_Imported = 1)
         and (PDF_File_Processed != 1 or PDF_File_Processed is null)
         and Folder_Name not in ("1 - Folders For Review With Alan", "Processed Inputs", "Doubt Files", "Old Reports", "Repeat Files")
-        and Folder_Name in ("2024.05.22, Lobue, Giovanni")
+--         and Folder_Name in ("2024.05.22, Lobue, Giovanni")
         order by Folder_Name
     ''', con=engine)
     merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
