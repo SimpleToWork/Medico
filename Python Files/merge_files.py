@@ -10,7 +10,7 @@ import datetime
 from docx2pdf import convert
 import pandas as pd
 from sqlalchemy import inspect
-from global_modules import print_color, create_folder, run_sql_scripts, Get_SQL_Types, engine_setup, error_handler
+from global_modules import print_color, create_folder, run_sql_scripts, Get_SQL_Types, engine_setup, error_handler, Change_Sql_Column_Types
 from google_drive_class import GoogleDriveAPI
 from google_sheets_api import GoogleSheetsAPI
 import zipfile
@@ -61,6 +61,15 @@ def table_setup(engine):
         Folder_To_Large_To_Combine boolean
     )''')
 
+
+    scripts.append(f'''Create Table if not exists Program_Performance(
+        id int auto_increment primary key,
+        module_name varchar(65),
+        date date,
+        datetime datetime,
+        Patient_Folder__Name varchar(25),
+        module_complete boolean
+        )''')
 
 
 
@@ -1011,8 +1020,32 @@ def  ocr_conversion(x, GdriveAPI, upload_folder_id, combined_pdf_file, upload_fi
     print_color(extended_command, color='b', output_file=patient_log_file)
     # result = subprocess.run([ocr_directory, ocr_settings], text=True)
     # os.system(extended_command)
-    result = subprocess.run(extended_command)
-    print_color(result, color='g', output_file=patient_log_file)
+    # result = subprocess.run(extended_command)
+
+    process = subprocess.Popen(extended_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    # Get the output and error
+    stdout, stderr = process.communicate()
+    if process.returncode == 0:
+        print("Subprocess completed successfully")
+    else:
+        print("Subprocess failed")
+        print("Error:")
+        print(stderr.decode())
+
+        return
+
+    output = stdout.decode()
+    if "skipped - Document was not modified" in output:
+        print_color(f'No New file Generated. Copying OCR File', color='y')
+        shutil.copyfile(combined_pdf_file, extended_ouput)
+
+    # Print the output
+    print("Output:")
+    print(stdout.decode())
+
+
+    # print_color(result, color='g', output_file=patient_log_file)
 
     all_files = GdriveAPI.get_files(folder_id=upload_folder_id)
     all_files = [x for x in all_files if x.get("name") == output_filename]
@@ -1302,19 +1335,34 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
     merge_process_df = pd.read_sql(f'Select * from merge_process', con=engine)
 
     print_color(df, color='r', output_file=main_log_file)
-
+    date_now =  datetime.datetime.now().strftime("%Y-%m-%d")
+    table_name = 'program_performance'
     for i in range(df.shape[0]):
         now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
         folder_name = df['Folder_Name'].iloc[i]
         patient_log_file = f'{patient_log_output_folder}\\{folder_name} {now}.html'
 
-        # try:
-        process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
-                              file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
-                              prefix_exclusion_list, images_extension_list, patient_log_file)
-        # except Exception as e:
-        #     print_color(f'An Error Occurred', color='r', output_file=patient_log_file)
-        #     print_color(e, color='r', output_file=patient_log_file)
+        try:
+            process_individual_folder(x, engine, i, record_input_folder_id, processed_inputs_folder_id, df, merge_process_df,
+                                  file_export, GsheetAPI, GdriveAPI, extension_list, extension_exclusion_list,
+                                  prefix_exclusion_list, images_extension_list, patient_log_file)
+
+            executed = True
+
+        except Exception as e:
+            print_color(f'An Error Occurred', color='r', output_file=patient_log_file)
+            print_color(e, color='r', output_file=patient_log_file)
+            executed = False
+
+        performance_list = [None, "Merge Process", date_now, now, folder_name, executed]
+        performance_df = pd.DataFrame([performance_list])
+        performance_df.columns = ['id', 'module_name', 'date', 'datetime', 'Patient_Folder__Name', 'module_complete']
+        sql_types = Get_SQL_Types(performance_df).data_types
+        Change_Sql_Column_Types(engine=engine, Project_name=x.project_name, Table_Name=table_name, DataTypes=sql_types, DataFrame=performance_df)
+        performance_df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
+                              chunksize=1000, dtype=sql_types)
+
+
         # break
 
 def merge_files_to_pdf(x, environment):
