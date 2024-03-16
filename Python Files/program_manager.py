@@ -26,6 +26,7 @@ def run_program(environment, function_to_run):
     record_program_performance(x, program_name="Medico", method=function_to_run)
 
 
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         environment = 'production'
