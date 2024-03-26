@@ -4,8 +4,9 @@ from google_drive_class import GoogleDriveAPI
 from google_sheets_api import GoogleSheetsAPI
 from gmail_api import GoogleGmailAPI
 from global_modules import print_color, error_handler
+from email_process import is_date
 import time
-
+from dateutil.parser import parse
 
 def get_form_data(x):
     GsheetAPI = GoogleSheetsAPI(credentials_file=x.gsheet_credentials_file, token_file=x.gsheet_token_file, scopes=x.gsheet_scopes,
@@ -17,8 +18,9 @@ def get_form_data(x):
     records_to_recruit = df[(df['processed'] != "TRUE")]
     print_color(records_to_recruit, color='y')
     if records_to_recruit.shape[0] >0:
+
         records_to_recruit['patient_dob'] = pd.to_datetime(records_to_recruit['patient_dob'], format="%d/%m/%Y")
-        records_to_recruit['date_of_exam'] = pd.to_datetime(records_to_recruit['date_of_exam'] , format="%d/%m/%Y")
+        records_to_recruit['date_of_exam'] = pd.to_datetime(records_to_recruit['date_of_exam'] , format="%d/%m/%Y", errors='ignore')
         records_to_recruit['timestamp'] = pd.to_datetime(records_to_recruit['timestamp'], format="%d/%m/%Y %H:%M:%S")
     print_color(records_to_recruit, color='y')
 
@@ -65,72 +67,91 @@ def process_records(x, records_to_recruit):
         files_to_upload = records_to_recruit['please_upload_up_to_10_files_here'].iloc[i]
         date_of_exam = records_to_recruit['date_of_exam'].iloc[i]
 
+        print_color(f'date_of_exam: {date_of_exam}', color='r')
+        date_processed = False
         if str(date_of_exam) != 'NaT':
-            file_name_date_of_exam = date_of_exam.strftime('%Y.%m.%d')
-            date_of_exam = date_of_exam.strftime('%Y-%m-%d')
+            print_color(is_date(date_of_exam, fuzzy=False))
+            date_details =  parse(date_of_exam, fuzzy=False)
+
+            print_color( date_details, color='g')
+            print_color(date_details.year, color='y')
+            if date_details.year < 2000:
+                print_color(f'Year is formatted incorrectly', color='r')
+
+            else:
+                if is_date(date_of_exam, fuzzy=False):
+                    file_name_date_of_exam = date_of_exam.strftime('%Y.%m.%d')
+                    date_of_exam = date_of_exam.strftime('%Y-%m-%d')
+                    date_processed = True
+                else:
+                    pass
         else:
             file_name_date_of_exam = (datetime.datetime.now() + datetime.timedelta(days=365)).strftime('%Y.%m.%d')
             date_of_exam = (datetime.datetime.now() + datetime.timedelta(days=365)).strftime('%Y-%m-%d')
-        print_color(date_of_exam, type(date_of_exam), type(date), color='g')
-        patient_first_name = records_to_recruit['patient_first_name'].iloc[i]
-        patient_last_name = records_to_recruit['patient_last_name'].iloc[i]
-        timestamp = records_to_recruit['timestamp'].iloc[i].strftime('%Y-%m-%d %H:%M:%S')
-        lawyer_name = records_to_recruit['lawyer_name'].iloc[i]
-        patient_dob = records_to_recruit['patient_dob'].iloc[i].strftime('%Y-%m-%d')
-        email_address = records_to_recruit['email_address'].iloc[i]
+            date_processed = True
 
-        if datetime.datetime.strptime(date_of_exam,"%Y-%m-%d") < datetime.datetime.strptime(date,"%Y-%m-%d"):
-            print_color(f'Date is earlier than today', color='y')
+        if date_processed is True:
 
-            name_of_new_folder = f'{file_name_date_of_exam}, {patient_last_name}, {patient_first_name} MAIL'
-        else:
-            name_of_new_folder = f'{file_name_date_of_exam}, {patient_last_name}, {patient_first_name} '
-        if name_of_new_folder not in folder_names:
-            new_folder_id = GdriveAPI.create_folder(name_of_new_folder, response_folder_id)
-        else:
-            new_folder_id = folder_dict.get(name_of_new_folder)
+            print_color(f'date_of_exam: {date_of_exam}', type(date_of_exam), type(date), color='g')
+            patient_first_name = records_to_recruit['patient_first_name'].iloc[i]
+            patient_last_name = records_to_recruit['patient_last_name'].iloc[i]
+            timestamp = records_to_recruit['timestamp'].iloc[i].strftime('%Y-%m-%d %H:%M:%S')
+            lawyer_name = records_to_recruit['lawyer_name'].iloc[i]
+            patient_dob = records_to_recruit['patient_dob'].iloc[i].strftime('%Y-%m-%d')
+            email_address = records_to_recruit['email_address'].iloc[i]
 
-        print_color(name_of_new_folder, new_folder_id, color='b')
-        print_color(files_to_upload, color='y')
+            if datetime.datetime.strptime(date_of_exam,"%Y-%m-%d") < datetime.datetime.strptime(date,"%Y-%m-%d"):
+                print_color(f'Date is earlier than today', color='y')
 
-        unique_files = files_to_upload.split(",")
-        unique_file_ids = [x.split("https://drive.google.com/open?id=")[-1] for x in unique_files]
-        print_color(unique_file_ids, color='r')
-        print_color(f'File to Move: {len(unique_file_ids)}', color='b')
+                name_of_new_folder = f'{file_name_date_of_exam}, {patient_last_name}, {patient_first_name} MAIL'
+            else:
+                name_of_new_folder = f'{file_name_date_of_exam}, {patient_last_name}, {patient_first_name} '
+            if name_of_new_folder not in folder_names:
+                new_folder_id = GdriveAPI.create_folder(name_of_new_folder, response_folder_id)
+            else:
+                new_folder_id = folder_dict.get(name_of_new_folder)
 
-        row_count += 1
-        counter = -1
-        data_to_upload = []
-        for each_id in unique_file_ids:
-            file_name = f"https://drive.google.com/open?id={each_id}"
-            print_color(file_name, color='y')
-            folder_name = f"https://drive.google.com/drive/u/0/folders/{new_folder_id}"
-            data_to_upload.append([timestamp, id, each_id, file_name, lawyer_name, email_address, patient_first_name,
-                                   patient_last_name, patient_dob, date_of_exam, folder_name])
-            counter +=1
-            GdriveAPI.move_file(file_id=each_id,new_folder_id=new_folder_id)
+            print_color(name_of_new_folder, new_folder_id, color='b')
+            print_color(files_to_upload, color='y')
 
-            print_color(data_to_upload, color='b')
-
-
-
-        print_color(f'File count {len(unique_file_ids)}  Range {row_count} - {row_count+counter}', color='y')
-        GsheetAPI.insert_row_to_sheet(sheetname="Detailed Evaluation Data", gid=0,
-                            insert_range=['B', row_count, 'J', row_count+counter],
-                            data=data_to_upload
-                            )
-            # break
-        row_count += counter
-
-        processed_responses = [[id, 'TRUE']]
-        GsheetAPI_1.insert_row_to_sheet(sheetname="Processed Responses", gid=865982653,
-                                      insert_range=['A', 1, 'B', 1],
-                                      data=processed_responses
-                                      )
-
-        time.sleep(5)
-
-        # break
+    #     unique_files = files_to_upload.split(",")
+    #     unique_file_ids = [x.split("https://drive.google.com/open?id=")[-1] for x in unique_files]
+    #     print_color(unique_file_ids, color='r')
+    #     print_color(f'File to Move: {len(unique_file_ids)}', color='b')
+    #
+    #     row_count += 1
+    #     counter = -1
+    #     data_to_upload = []
+    #     for each_id in unique_file_ids:
+    #         file_name = f"https://drive.google.com/open?id={each_id}"
+    #         print_color(file_name, color='y')
+    #         folder_name = f"https://drive.google.com/drive/u/0/folders/{new_folder_id}"
+    #         data_to_upload.append([timestamp, id, each_id, file_name, lawyer_name, email_address, patient_first_name,
+    #                                patient_last_name, patient_dob, date_of_exam, folder_name])
+    #         counter +=1
+    #         GdriveAPI.move_file(file_id=each_id,new_folder_id=new_folder_id)
+    #
+    #         print_color(data_to_upload, color='b')
+    #
+    #
+    #
+    #     print_color(f'File count {len(unique_file_ids)}  Range {row_count} - {row_count+counter}', color='y')
+    #     GsheetAPI.insert_row_to_sheet(sheetname="Detailed Evaluation Data", gid=0,
+    #                         insert_range=['B', row_count, 'J', row_count+counter],
+    #                         data=data_to_upload
+    #                         )
+    #         # break
+    #     row_count += counter
+    #
+    #     processed_responses = [[id, 'TRUE']]
+    #     GsheetAPI_1.insert_row_to_sheet(sheetname="Processed Responses", gid=865982653,
+    #                                   insert_range=['A', 1, 'B', 1],
+    #                                   data=processed_responses
+    #                                   )
+    #
+    #     time.sleep(5)
+    #
+    #     # break
 
 
 
@@ -145,10 +166,10 @@ def run_file_upload_process(x, environment):
         error_message = f"{type(error).__name__}, {error}"
 
         email_body = \
-        f'''Hello,    
-        <br><br>An Error Occurred on The Upload Process. 
+        f'''Hello,
+        <br><br>An Error Occurred on The Upload Process.
         <br>See Error Below
-        <br><span style="color:Red;font-weight:Bold; ">{str(error_message)}</span> 
+        <br><span style="color:Red;font-weight:Bold; ">{str(error_message)}</span>
 
         <br><br>Thank you,
         <br><br>This is an automatically generated email.
