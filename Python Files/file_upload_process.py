@@ -170,8 +170,6 @@ def process_records(x, records_to_recruit):
     for i in range(records_to_recruit.shape[0]):
         now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
 
-
-
         try:
             row_count, name_of_new_folder, date_processed = process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, folder_dict, date,
                                   response_folder_id, row_count, GsheetAPI, GsheetAPI_1)
