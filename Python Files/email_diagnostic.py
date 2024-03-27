@@ -60,6 +60,7 @@ def get_email_process_history(GsheetAPI):
 
     return email_body
 
+
 def get_upload_process_history(engine):
     df = pd.read_sql(f'''
             select * from 
