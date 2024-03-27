@@ -195,7 +195,7 @@ def process_records(x, records_to_recruit):
         performance_df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
                               chunksize=1000, dtype=sql_types)
 
-        print_color(f'Data imported tp {table_name}', color='g')
+        print_color(f'Data imported to {table_name}', color='g')
 
 
 
