@@ -124,6 +124,7 @@ def process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, fo
                                         insert_range=['A', 1, 'B', 1],
                                         data=processed_responses
                                         )
+
     return row_count, name_of_new_folder, date_processed
 
 def process_records(x, records_to_recruit):
@@ -183,7 +184,7 @@ def process_records(x, records_to_recruit):
             print_color(e, color='r')
             executed = False
 
-        print_color( name_of_new_folder, date_processed, color='b')
+        print_color(name_of_new_folder, date_processed, color='b')
         performance_list = [None, "Upload Process", date_now, now, name_of_new_folder, executed]
         performance_df = pd.DataFrame([performance_list])
         performance_df.columns = ['id', 'module_name', 'date', 'datetime', 'Patient_Folder__Name', 'module_complete']
@@ -192,6 +193,8 @@ def process_records(x, records_to_recruit):
                                 DataFrame=performance_df)
         performance_df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
                               chunksize=1000, dtype=sql_types)
+
+        print_color(f'Data imported tp {table_name}', color='g')
 
 
 
