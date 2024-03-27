@@ -106,13 +106,17 @@ def get_upload_process_history(engine):
 
 def get_merge_process_history(engine):
     df = pd.read_sql(f'''
-        select * from 
+        select A.*, case when B.Patient_Folder__Name is not null then True else False end as From_Upload from
+        (select * from 
         (SELECT *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking 
         FROM program_performance 
         where module_name = "Merge Process"
         and datetime >= current_timestamp() - interval 1 day) A
         where ranking = 1
-        order by module_complete desc, datetime asc, Patient_Folder__Name asc;''', con=engine)
+        order by module_complete desc, datetime asc, Patient_Folder__Name asc) A
+        left join
+        (select * from (select *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking from program_performance where module_name = "Upload Process") A where ranking =1) B 
+        on trim(a.Patient_Folder__Name) = trim(b.B.Patient_Folder__Name);''', con=engine)
 
     print_color(df, color='y')
 
@@ -124,6 +128,7 @@ def get_merge_process_history(engine):
               <th style="border: solid; border-width:1px; width: 200px; padding:0;">Datetime</td>
               <th style="border: solid; border-width:1px; width: 500px; padding:0;">Patient Folder</td>
               <th style="border: solid; border-width:1px; width: 200px; padding:0;">Merge Complete ?</td>
+              <th style="border: solid; border-width:1px; width: 200px; padding:0;">From Upload Process ?</td>
             
           </tr>'''
 
@@ -132,15 +137,16 @@ def get_merge_process_history(engine):
         patient_folder = df['Patient_Folder__Name'].iloc[k]
         module_complete = df['module_complete'].iloc[k]
         module_complete = 'TRUE' if module_complete == 1 else 'FALSE'
-
         module_complete_status = 'Green' if module_complete == 'TRUE' else 'Red'
+        from_upload = df['From_Upload'].iloc[k]
+        from_upload = 'TRUE' if from_upload == 1 else 'FALSE'
 
         email_body += f'''
                  <tr>
                      <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{datetime}</td>
                      <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{patient_folder}</td>
                      <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; color:{module_complete_status}">{module_complete}</td>
-                   
+                     <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{from_upload}</td>
                  </tr>'''
     email_body += f'</table>'
 
