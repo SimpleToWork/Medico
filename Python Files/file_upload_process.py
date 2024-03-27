@@ -188,6 +188,7 @@ def process_records(x, records_to_recruit):
         performance_list = [None, "Upload Process", date_now, now, name_of_new_folder, executed]
         performance_df = pd.DataFrame([performance_list])
         performance_df.columns = ['id', 'module_name', 'date', 'datetime', 'Patient_Folder__Name', 'module_complete']
+        print_color(performance_df, color='g')
         sql_types = Get_SQL_Types(performance_df).data_types
         Change_Sql_Column_Types(engine=engine, Project_name=x.project_name, Table_Name=table_name, DataTypes=sql_types,
                                 DataFrame=performance_df)
