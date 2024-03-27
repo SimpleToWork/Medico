@@ -31,7 +31,7 @@
     </ApplicationSettings>
     <PDFDocumentSettings>
         <overwrite>false</overwrite>
-        <forceoutput>false</forceoutput>
+        <forceoutput>true</forceoutput>
         <ignoreblankpages>false</ignoreblankpages>
         <PDFDoc>
             <PDFVersion>1.6</PDFVersion>
