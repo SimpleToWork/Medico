@@ -59,6 +59,7 @@ class ProgramCredentials:
         self.gmail_scopes = f['gmail_scopes']
         self.email_sender = f['email_sender']
         self.notification_email = f['notification_email']
+        self.diagnostic_email = f['diagnostic_email']
 
         self.mle_folder = f['mle_folder']
         self.log_output_folder = f['log_output_folder'].replace("%USERNAME%", getpass.getuser())

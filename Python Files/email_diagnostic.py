@@ -174,7 +174,7 @@ def run_email_diagnostic(x, environment):
     merge_history_body = get_merge_process_history(engine)
     email_body += merge_history_body
 
-    GmailAPI.send_email(email_to=", ".join(x.notification_email), email_sender=x.email_sender,
+    GmailAPI.send_email(email_to=", ".join(x.diagnostic_email), email_sender=x.email_sender,
                         email_subject=f'Medico Program Diagnostic {now}', email_cc=None, email_bcc=None,
                         email_body=email_body)
 
