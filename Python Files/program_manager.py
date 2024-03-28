@@ -1,5 +1,5 @@
 from merge_files import merge_files_to_pdf, ocr_conversion
-from global_modules import ProgramCredentials, print_color, record_program_performance
+from global_modules import ProgramCredentials, print_color, record_program_performance, record_program_details
 from email_process import run_email_process
 from file_upload_process import run_file_upload_process
 from email_diagnostic import run_email_diagnostic
@@ -26,6 +26,7 @@ def run_program(environment, function_to_run):
     elif function_to_run == 'Email Diagnostic':
         run_email_diagnostic(x, environment)
 
+    record_program_details(x, program_name="Medico", method=function_to_run)
     record_program_performance(x, program_name="Medico", method=function_to_run)
 
 

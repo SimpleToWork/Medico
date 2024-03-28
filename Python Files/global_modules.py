@@ -680,6 +680,36 @@ def run_sql_scripts(engine=None, scripts=None, tryexcept=False,
     print_color(f'Scripts Complete --All Scripts Took {time.time() - real_start_time} seconds to Run --', color='b')
 
 
+def record_program_details(x, program_name, method):
+
+    engine = engine_setup(project_name=x.project_name, hostname =x.hostname, username=x.username, password=x.password, port=x.port)
+    computer_name = platform.node()
+    user = getpass.getuser()
+    time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print_color(f'Data imported', color='g')
+
+    url = x.webhook_url
+
+    data = {
+        'DateTime':time_now,
+        'Computer':computer_name,
+        'User':user,
+        'Program Name':program_name,
+        'Function':method,
+        'Success':True
+    }
+    print_color(data, color='r')
+
+    df = pd.DataFrame([data])
+    print_color(df, color='y')
+    table_name = 'task_performance'
+    sql_types = Get_SQL_Types(df).data_types
+    Change_Sql_Column_Types(engine=engine, Project_name=x.project_name, Table_Name=table_name, DataTypes=sql_types,
+                            DataFrame=df)
+    df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
+                          chunksize=1000, dtype=sql_types)
+
+
 def record_program_performance(x, program_name, method):
     ip = requests.get('https://api.ipify.org').content.decode('utf8')
 

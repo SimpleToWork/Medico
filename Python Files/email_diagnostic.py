@@ -11,54 +11,60 @@ def get_email_process_history(GsheetAPI):
     df = GsheetAPI.get_data_from_sheet(sheetname="Auto Publish Data", range_name="A:Q")
     df['import_date'] = pd.to_datetime(df['import_date'])
     df = df[df['import_date']>=date_time]
-    df = df.sort_values(by=['document_emailed', 'import_date', 'document_name'])
+    df = df[(df['all_fields_assigned'] == 'FALSE') | (df['approved_to_send_out_?'] == 'FALSE') | (df['document_emailed'] == 'FALSE')| (df['document_moved'] == 'FALSE')]
+    if df.shape[0] >0:
+        df = df.sort_values(by=['document_emailed', 'import_date', 'document_name'])
 
-    print_color(df, color='r')
-    print_color(df.columns, color='r')
+        print_color(df, color='r')
+        print_color(df.columns, color='r')
 
-    email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Auto Publish Process:</span>'
-    email_body += f'<br><span style="color:Black; ">See Below Satus of Records Processed in the last 24 hours.</span>'
-    email_body += f'<br><br><table>'
-    email_body += f'''
-        <tr>
-            <th style="border: solid; border-width:1px; width: 100px; padding:0;">Import Date</td>
-            <th style="border: solid; border-width:1px; width: 500px; padding:0;">Document Name</td>
-            <th style="border: solid; border-width:1px; width: 100px; padding:0;">Date of Report</td>
-            <th style="border: solid; border-width:1px; width: 100px; padding:0;">All Fields Assigned</td>
-            <th style="border: solid; border-width:1px; width: 100px; padding:0;">Approved to Send Out</td>
-            <th style="border: solid; border-width:1px; width: 100px; padding:0;">Document Emailed</td>
-            <th style="border: solid; border-width:1px; width: 100px; padding:0;">Document Moved</td>
-        </tr>'''
-
-    for k in range(df.shape[0]):
-        import_date = df['import_date'].iloc[k].strftime('%Y-%m-%d')
-        document_name = df['document_name'].iloc[k]
-        date_of_report = df['date_of_report'].iloc[k]
-        all_fields_assigned = df['all_fields_assigned'].iloc[k]
-        approved_to_send_out = df['approved_to_send_out_?'].iloc[k]
-        document_emailed = df['document_emailed'].iloc[k]
-        document_moved = df['document_moved'].iloc[k]
-
-        print_color('document_name', document_name, color='y')
-
-        all_fields_assigned_status = 'Green' if all_fields_assigned == 'TRUE' else 'Red'
-        approved_to_send_out_status = 'Green' if approved_to_send_out == 'TRUE' else 'Red'
-        document_emailed_status = 'Green' if document_emailed == 'TRUE' else 'Red'
-        document_moved_status = 'Green' if document_moved == 'TRUE' else 'Red'
-
+        email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Auto Publish Process:</span>'
+        email_body += f'<br><span style="color:Black; ">See Below Satus of Records Processed in the last 24 hours.</span>'
+        email_body += f'<br><br><table>'
         email_body += f'''
             <tr>
-                <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; ">{import_date}</td>
-                <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{document_name}</td>
-                <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px;">{date_of_report}</td>
-                <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; color:{all_fields_assigned_status}">{all_fields_assigned}</td>
-                <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; color:{approved_to_send_out_status}">{approved_to_send_out}</td>
-                <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; color:{document_emailed_status}">{document_emailed}</td>
-                <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; color:{document_moved_status}">{document_moved}</td>
+                <th style="border: solid; border-width:1px; width: 100px; padding:0;">Import Date</td>
+                <th style="border: solid; border-width:1px; width: 500px; padding:0;">Document Name</td>
+                <th style="border: solid; border-width:1px; width: 100px; padding:0;">Date of Report</td>
+                <th style="border: solid; border-width:1px; width: 100px; padding:0;">All Fields Assigned</td>
+                <th style="border: solid; border-width:1px; width: 100px; padding:0;">Approved to Send Out</td>
+                <th style="border: solid; border-width:1px; width: 100px; padding:0;">Document Emailed</td>
+                <th style="border: solid; border-width:1px; width: 100px; padding:0;">Document Moved</td>
             </tr>'''
-    email_body += f'</table>'
 
-    return email_body
+        for k in range(df.shape[0]):
+            import_date = df['import_date'].iloc[k].strftime('%Y-%m-%d')
+            document_name = df['document_name'].iloc[k]
+            date_of_report = df['date_of_report'].iloc[k]
+            all_fields_assigned = df['all_fields_assigned'].iloc[k]
+            approved_to_send_out = df['approved_to_send_out_?'].iloc[k]
+            document_emailed = df['document_emailed'].iloc[k]
+            document_moved = df['document_moved'].iloc[k]
+
+            print_color('document_name', document_name, color='y')
+
+            all_fields_assigned_status = 'Green' if all_fields_assigned == 'TRUE' else 'Red'
+            approved_to_send_out_status = 'Green' if approved_to_send_out == 'TRUE' else 'Red'
+            document_emailed_status = 'Green' if document_emailed == 'TRUE' else 'Red'
+            document_moved_status = 'Green' if document_moved == 'TRUE' else 'Red'
+
+            email_body += f'''
+                <tr>
+                    <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; ">{import_date}</td>
+                    <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{document_name}</td>
+                    <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px;">{date_of_report}</td>
+                    <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; color:{all_fields_assigned_status}">{all_fields_assigned}</td>
+                    <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; color:{approved_to_send_out_status}">{approved_to_send_out}</td>
+                    <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; color:{document_emailed_status}">{document_emailed}</td>
+                    <td style="border: solid 1px black; width: 100px; padding:0; text-indent: 5px; color:{document_moved_status}">{document_moved}</td>
+                </tr>'''
+        email_body += f'</table>'
+
+        return email_body
+    else:
+        email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Auto Publish Process:</span>'
+        email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
+        return email_body
 
 
 def get_upload_process_history(engine):
@@ -67,39 +73,46 @@ def get_upload_process_history(engine):
             (SELECT *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking 
             FROM program_performance 
             where module_name = "Upload Process"
+            and module_complete = 0
             and datetime >= current_timestamp() - interval 1 day) A
             where ranking = 1
             order by module_complete desc, datetime asc, Patient_Folder__Name asc;''', con=engine)
 
     print_color(df, color='y')
 
-    email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Upload Process:</span>'
-    email_body += f'<br><span style="color:Black; ">See Below Satus of Upload Records Processed in the last 24 hours.</span>'
-    email_body += f'<br><br><table>'
-    email_body += f'''
-              <tr>
-                  <th style="border: solid; border-width:1px; width: 200px; padding:0;">Datetime</td>
-                  <th style="border: solid; border-width:1px; width: 500px; padding:0;">Patient Folder</td>
-                  <th style="border: solid; border-width:1px; width: 200px; padding:0;">Upload Complete ?</td>
+    if df.shape[0]>0:
 
-              </tr>'''
-
-    for k in range(df.shape[0]):
-        datetime = df['datetime'].iloc[k]
-        patient_folder = df['Patient_Folder__Name'].iloc[k]
-        module_complete = df['module_complete'].iloc[k]
-        module_complete = 'TRUE' if module_complete == 1 else 'FALSE'
-
-        module_complete_status = 'Green' if module_complete == 'TRUE' else 'Red'
-
+        email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Upload Process:</span>'
+        email_body += f'<br><span style="color:Black; ">See Below Satus of Upload Records Processed in the last 24 hours.</span>'
+        email_body += f'<br><br><table>'
         email_body += f'''
-                     <tr>
-                         <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{datetime}</td>
-                         <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{patient_folder}</td>
-                         <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; color:{module_complete_status}">{module_complete}</td>
+                  <tr>
+                      <th style="border: solid; border-width:1px; width: 200px; padding:0;">Datetime</td>
+                      <th style="border: solid; border-width:1px; width: 500px; padding:0;">Patient Folder</td>
+                      <th style="border: solid; border-width:1px; width: 200px; padding:0;">Upload Complete ?</td>
+    
+                  </tr>'''
 
-                     </tr>'''
-    email_body += f'</table>'
+        for k in range(df.shape[0]):
+            datetime = df['datetime'].iloc[k]
+            patient_folder = df['Patient_Folder__Name'].iloc[k]
+            module_complete = df['module_complete'].iloc[k]
+            module_complete = 'TRUE' if module_complete == 1 else 'FALSE'
+
+            module_complete_status = 'Green' if module_complete == 'TRUE' else 'Red'
+
+            email_body += f'''
+                         <tr>
+                             <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{datetime}</td>
+                             <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{patient_folder}</td>
+                             <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; color:{module_complete_status}">{module_complete}</td>
+    
+                         </tr>'''
+        email_body += f'</table>'
+
+    else:
+        email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Upload Process:</span>'
+        email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
 
     return email_body
 
@@ -111,8 +124,10 @@ def get_merge_process_history(engine):
         (SELECT *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking 
         FROM program_performance 
         where module_name = "Merge Process"
+        and module_complete = 0
         and datetime >= current_timestamp() - interval 1 day) A
         where ranking = 1
+      
         order by module_complete desc, datetime asc, Patient_Folder__Name asc) A
         left join
         (select * from (select *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking from program_performance where module_name = "Upload Process") A where ranking =1) B 
@@ -120,36 +135,39 @@ def get_merge_process_history(engine):
 
     print_color(df, color='y')
 
-    email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Merge Process:</span>'
-    email_body += f'<br><span style="color:Black; ">See Below Satus of Merge Records Processed in the last 24 hours.</span>'
-    email_body += f'<br><br><table>'
-    email_body += f'''
-          <tr>
-              <th style="border: solid; border-width:1px; width: 200px; padding:0;">Datetime</td>
-              <th style="border: solid; border-width:1px; width: 500px; padding:0;">Patient Folder</td>
-              <th style="border: solid; border-width:1px; width: 200px; padding:0;">Merge Complete ?</td>
-              <th style="border: solid; border-width:1px; width: 200px; padding:0;">From Upload Process ?</td>
-            
-          </tr>'''
-
-    for k in range(df.shape[0]):
-        datetime = df['datetime'].iloc[k]
-        patient_folder = df['Patient_Folder__Name'].iloc[k]
-        module_complete = df['module_complete'].iloc[k]
-        module_complete = 'TRUE' if module_complete == 1 else 'FALSE'
-        module_complete_status = 'Green' if module_complete == 'TRUE' else 'Red'
-        from_upload = df['From_Upload'].iloc[k]
-        from_upload = 'TRUE' if from_upload == 1 else 'FALSE'
-
+    if df.shape[0]>0:
+        email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Merge Process:</span>'
+        email_body += f'<br><span style="color:Black; ">See Below Satus of Merge Records Processed in the last 24 hours.</span>'
+        email_body += f'<br><br><table>'
         email_body += f'''
-                 <tr>
-                     <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{datetime}</td>
-                     <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{patient_folder}</td>
-                     <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; color:{module_complete_status}">{module_complete}</td>
-                     <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{from_upload}</td>
-                 </tr>'''
-    email_body += f'</table>'
+              <tr>
+                  <th style="border: solid; border-width:1px; width: 200px; padding:0;">Datetime</td>
+                  <th style="border: solid; border-width:1px; width: 500px; padding:0;">Patient Folder</td>
+                  <th style="border: solid; border-width:1px; width: 200px; padding:0;">Merge Complete ?</td>
+                  <th style="border: solid; border-width:1px; width: 200px; padding:0;">From Upload Process ?</td>
+                
+              </tr>'''
 
+        for k in range(df.shape[0]):
+            datetime = df['datetime'].iloc[k]
+            patient_folder = df['Patient_Folder__Name'].iloc[k]
+            module_complete = df['module_complete'].iloc[k]
+            module_complete = 'TRUE' if module_complete == 1 else 'FALSE'
+            module_complete_status = 'Green' if module_complete == 'TRUE' else 'Red'
+            from_upload = df['From_Upload'].iloc[k]
+            from_upload = 'TRUE' if from_upload == 1 else 'FALSE'
+
+            email_body += f'''
+                     <tr>
+                         <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{datetime}</td>
+                         <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{patient_folder}</td>
+                         <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; color:{module_complete_status}">{module_complete}</td>
+                         <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{from_upload}</td>
+                     </tr>'''
+        email_body += f'</table>'
+    else:
+        email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Merge Process:</span>'
+        email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
 
     return email_body
 
