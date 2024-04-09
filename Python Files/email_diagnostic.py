@@ -11,7 +11,13 @@ def get_email_process_history(GsheetAPI):
     df = GsheetAPI.get_data_from_sheet(sheetname="Auto Publish Data", range_name="A:Q")
     df['import_date'] = pd.to_datetime(df['import_date'])
     df = df[df['import_date']>=date_time]
+
+    df2 = df[(df['all_fields_assigned'] == 'TRUE') | (df['approved_to_send_out_?'] == 'TRUE') | (
+                df['document_emailed'] == 'TRUE') | (df['document_moved'] == 'TRUE')]
+
+
     df = df[(df['all_fields_assigned'] == 'FALSE') | (df['approved_to_send_out_?'] == 'FALSE') | (df['document_emailed'] == 'FALSE')| (df['document_moved'] == 'FALSE')]
+
     if df.shape[0] >0:
         df = df.sort_values(by=['document_emailed', 'import_date', 'document_name'])
 
@@ -60,11 +66,16 @@ def get_email_process_history(GsheetAPI):
                 </tr>'''
         email_body += f'</table>'
 
-        return email_body
+
     else:
         email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Auto Publish Process:</span>'
         email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
-        return email_body
+
+    email_body += f'<br><br><span style="color:Black; ">Records Processed in Total {df2.shape[0]}</span>'
+    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df.shape[0]}</span>'
+
+
+    return email_body
 
 
 def get_upload_process_history(engine):
@@ -73,11 +84,12 @@ def get_upload_process_history(engine):
             (SELECT *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking 
             FROM program_performance 
             where module_name = "Upload Process"
-            and module_complete = 0
+--             and module_complete = 0
             and datetime >= current_timestamp() - interval 1 day) A
             where ranking = 1
             order by module_complete desc, datetime asc, Patient_Folder__Name asc;''', con=engine)
-
+    df2 = df = df[df['module_complete'] ==1]
+    df = df[df['module_complete'] ==0]
     print_color(df, color='y')
 
     if df.shape[0]>0:
@@ -114,6 +126,9 @@ def get_upload_process_history(engine):
         email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Upload Process:</span>'
         email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
 
+    email_body += f'<br><br><span style="color:Black; ">Records Processed in Total {df2.shape[0]}</span>'
+    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df.shape[0]}</span>'
+
     return email_body
 
 
@@ -124,7 +139,7 @@ def get_merge_process_history(engine):
         (SELECT *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking 
         FROM program_performance 
         where module_name = "Merge Process"
-        and module_complete = 0
+--         and module_complete = 0
         and datetime >= current_timestamp() - interval 1 day) A
         where ranking = 1
       
@@ -132,6 +147,9 @@ def get_merge_process_history(engine):
         left join
         (select * from (select *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking from program_performance where module_name = "Upload Process") A where ranking =1) B 
         on trim(a.Patient_Folder__Name) = trim(b.B.Patient_Folder__Name);''', con=engine)
+
+    df2 = df = df[df['module_complete'] == 1]
+    df = df[df['module_complete'] == 0]
 
     print_color(df, color='y')
 
@@ -169,7 +187,47 @@ def get_merge_process_history(engine):
         email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Merge Process:</span>'
         email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
 
+    email_body += f'<br><br><span style="color:Black; ">Records Processed in Total {df2.shape[0]}</span>'
+    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df.shape[0]}</span>'
+
     return email_body
+
+
+def get_task_performance_histroy(engine):
+    df = pd.read_sql(f'''select `Function`, sum(Missed_run) as `Count of Times Program Failed to Complete` from
+        (select *, case when time_difference >2 then 1 else 0 end as Missed_run from
+        (select *, ifnull(TIME_TO_SEC(timediff(datetime, Prior_run))/ 60/ 60,0) as time_difference from
+        (SELECT *, lag(datetime,1) over(partition by `function` order by datetime) as Prior_run
+        FROM task_performance where DateTime >= current_timestamp() - interval 1 day
+        and `function` != "Email Diagnostic"
+        order by `function`, datetime) A) B) C
+        group by `function`''', con=engine)
+
+    if df.shape[0] > 0:
+        email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Program RunTime Performance:</span>'
+        email_body += f'<br><span style="color:Black; ">See Below History of Processes That Failed to Complete in the last 24 hours.</span>'
+        email_body += f'<br><br><table>'
+        email_body += f'''
+                 <tr>
+                     <th style="border: solid; border-width:1px; width: 200px; padding:0;">Module</td>
+                     <th style="border: solid; border-width:1px; width: 500px; padding:0;">Fail Count</td>
+                 </tr>'''
+
+        for k in range(df.shape[0]):
+            module = df['Function'].iloc[k]
+            fail_count = df['Count of Times Program Failed to Complete'].iloc[k]
+
+            email_body += f'''
+                        <tr>
+                            <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{module}</td>
+                            <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{fail_count}</td>
+                          
+                        </tr>'''
+        email_body += f'</table>'
+
+    return email_body
+
+
 
 
 def run_email_diagnostic(x, environment):
@@ -197,6 +255,9 @@ def run_email_diagnostic(x, environment):
 
     merge_history_body = get_merge_process_history(engine)
     email_body += merge_history_body
+
+    task_performance = get_task_performance_histroy(engine)
+    email_body += task_performance
 
     GmailAPI.send_email(email_to=", ".join(x.diagnostic_email), email_sender=x.email_sender,
                         email_subject=f'Medico Program Diagnostic {now}', email_cc=None, email_bcc=None,
