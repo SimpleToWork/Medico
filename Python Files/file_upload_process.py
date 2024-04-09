@@ -37,7 +37,7 @@ def process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, fo
     patient_dob = records_to_recruit['patient_dob'].iloc[i].strftime('%Y-%m-%d')
     email_address = records_to_recruit['email_address'].iloc[i]
     date_of_exam = records_to_recruit['date_of_exam'].iloc[i]
-    date_of_exam = pd.to_datetime(date_of_exam, errors='ignore')
+    date_of_exam = pd.to_datetime(date_of_exam, errors='ignore', format="%d/%m/%Y")
 
     print_color(f'patient: {patient_first_name} {patient_last_name}, date_of_exam: {date_of_exam} ', color='r')
     date_processed = False
@@ -197,7 +197,7 @@ def process_records(x, records_to_recruit):
 
         print_color(f'Data imported to {table_name}', color='g')
 
-
+        # break
 
 
 
