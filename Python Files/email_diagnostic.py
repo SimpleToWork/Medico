@@ -96,7 +96,7 @@ def get_upload_process_history(engine):
             order by module_complete desc, datetime asc, Patient_Folder__Name asc;''', con=engine)
     # import datetime
     hour_now = datetime.datetime.now().hour
-    df2 = df = df[df['module_complete'] == 1]
+    df2 = df[df['module_complete'] == 1]
     df3 = df[df['module_complete'] == 0]
 
     if hour_now > 12:
@@ -161,7 +161,7 @@ def get_merge_process_history(engine):
 
     # import datetime
     hour_now = datetime.datetime.now().hour
-    df2 = df = df[df['module_complete'] == 1]
+    df2 = df[df['module_complete'] == 1]
     df3 = df[df['module_complete'] == 0]
 
     if hour_now > 12:
