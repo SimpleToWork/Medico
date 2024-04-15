@@ -7,16 +7,22 @@ from global_modules import print_color, create_folder, error_handler, engine_set
 
 def get_email_process_history(GsheetAPI):
     date_time = datetime.datetime.combine(datetime.datetime.now(), datetime.time.min) - datetime.timedelta(days=1)
+    hour_now = datetime.datetime.now().hour
+    print_color(f'hour_now: {hour_now}',color='y')
     print_color(date_time, color='g')
     df = GsheetAPI.get_data_from_sheet(sheetname="Auto Publish Data", range_name="A:Q")
     df['import_date'] = pd.to_datetime(df['import_date'])
     df = df[df['import_date']>=date_time]
 
     df2 = df[(df['all_fields_assigned'] == 'TRUE') | (df['approved_to_send_out_?'] == 'TRUE') | (
-                df['document_emailed'] == 'TRUE') | (df['document_moved'] == 'TRUE')]
+            df['document_emailed'] == 'TRUE') | (df['document_moved'] == 'TRUE')]
 
+    df3 = df[(df['all_fields_assigned'] == 'FALSE') | (df['approved_to_send_out_?'] == 'FALSE') | (
+                df['document_emailed'] == 'FALSE') | (df['document_moved'] == 'FALSE')]
 
-    df = df[(df['all_fields_assigned'] == 'FALSE') | (df['approved_to_send_out_?'] == 'FALSE') | (df['document_emailed'] == 'FALSE')| (df['document_moved'] == 'FALSE')]
+    if hour_now > 12:
+        df = df[(df['all_fields_assigned'] == 'FALSE') | (df['approved_to_send_out_?'] == 'FALSE') | (df['document_emailed'] == 'FALSE')| (df['document_moved'] == 'FALSE')]
+
 
     if df.shape[0] >0:
         df = df.sort_values(by=['document_emailed', 'import_date', 'document_name'])
@@ -72,7 +78,7 @@ def get_email_process_history(GsheetAPI):
         email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
 
     email_body += f'<br><br><span style="color:Black; ">Records Processed in Total {df2.shape[0]}</span>'
-    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df.shape[0]}</span>'
+    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df3.shape[0]}</span>'
 
 
     return email_body
@@ -81,15 +87,20 @@ def get_email_process_history(GsheetAPI):
 def get_upload_process_history(engine):
     df = pd.read_sql(f'''
             select * from 
-            (SELECT *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking 
+            (SELECT *, row_number() over (partition by Patient_Folder__Name order by `datetime` desc) as ranking 
             FROM program_performance 
             where module_name = "Upload Process"
 --             and module_complete = 0
-            and datetime >= current_timestamp() - interval 1 day) A
+            and `datetime` >= current_timestamp() - interval 1 day) A
             where ranking = 1
             order by module_complete desc, datetime asc, Patient_Folder__Name asc;''', con=engine)
-    df2 = df = df[df['module_complete'] ==1]
-    df = df[df['module_complete'] ==0]
+    # import datetime
+    hour_now = datetime.datetime.now().hour
+    df2 = df = df[df['module_complete'] == 1]
+    df3 = df[df['module_complete'] == 0]
+
+    if hour_now > 12:
+        df = df[df['module_complete'] ==0]
     print_color(df, color='y')
 
     if df.shape[0]>0:
@@ -106,7 +117,7 @@ def get_upload_process_history(engine):
                   </tr>'''
 
         for k in range(df.shape[0]):
-            datetime = df['datetime'].iloc[k]
+            date_time = df['datetime'].iloc[k]
             patient_folder = df['Patient_Folder__Name'].iloc[k]
             module_complete = df['module_complete'].iloc[k]
             module_complete = 'TRUE' if module_complete == 1 else 'FALSE'
@@ -115,7 +126,7 @@ def get_upload_process_history(engine):
 
             email_body += f'''
                          <tr>
-                             <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{datetime}</td>
+                             <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{date_time}</td>
                              <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{patient_folder}</td>
                              <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; color:{module_complete_status}">{module_complete}</td>
     
@@ -127,7 +138,7 @@ def get_upload_process_history(engine):
         email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
 
     email_body += f'<br><br><span style="color:Black; ">Records Processed in Total {df2.shape[0]}</span>'
-    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df.shape[0]}</span>'
+    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df3.shape[0]}</span>'
 
     return email_body
 
@@ -148,8 +159,14 @@ def get_merge_process_history(engine):
         (select * from (select *, row_number() over (partition by Patient_Folder__Name order by datetime desc) as ranking from program_performance where module_name = "Upload Process") A where ranking =1) B 
         on trim(a.Patient_Folder__Name) = trim(b.B.Patient_Folder__Name);''', con=engine)
 
+    # import datetime
+    hour_now = datetime.datetime.now().hour
     df2 = df = df[df['module_complete'] == 1]
-    df = df[df['module_complete'] == 0]
+    df3 = df[df['module_complete'] == 0]
+
+    if hour_now > 12:
+
+        df = df[df['module_complete'] == 0]
 
     print_color(df, color='y')
 
@@ -167,7 +184,7 @@ def get_merge_process_history(engine):
               </tr>'''
 
         for k in range(df.shape[0]):
-            datetime = df['datetime'].iloc[k]
+            date_time = df['datetime'].iloc[k]
             patient_folder = df['Patient_Folder__Name'].iloc[k]
             module_complete = df['module_complete'].iloc[k]
             module_complete = 'TRUE' if module_complete == 1 else 'FALSE'
@@ -177,7 +194,7 @@ def get_merge_process_history(engine):
 
             email_body += f'''
                      <tr>
-                         <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{datetime}</td>
+                         <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; ">{date_time}</td>
                          <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{patient_folder}</td>
                          <td style="border: solid 1px black; width: 200px; padding:0; text-indent: 5px; color:{module_complete_status}">{module_complete}</td>
                          <td style="border: solid 1px black; width: 500px; padding:0; text-indent: 5px;">{from_upload}</td>
@@ -188,7 +205,7 @@ def get_merge_process_history(engine):
         email_body += f'<br><span style="color:Black; ">All Records in the last 24 hours were Processed Correctly.</span>'
 
     email_body += f'<br><br><span style="color:Black; ">Records Processed in Total {df2.shape[0]}</span>'
-    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df.shape[0]}</span>'
+    email_body += f'<br><span style="color:Black; ">Records Failed in Total {df3.shape[0]}</span>'
 
     return email_body
 
@@ -203,9 +220,11 @@ def get_task_performance_histroy(engine):
         order by `function`, datetime) A) B) C
         group by `function`''', con=engine)
 
+    email_body = f'<br><br><span style="color:Black;font-weight:Bold; font-size:24px;">Program RunTime Performance:</span>'
+    email_body += f'<br><span style="color:Black; ">See Below History of Processes That Failed to Complete in the last 24 hours.</span>'
+
     if df.shape[0] > 0:
-        email_body = f'<br><span style="color:Black;font-weight:Bold; font-size:24px;">Program RunTime Performance:</span>'
-        email_body += f'<br><span style="color:Black; ">See Below History of Processes That Failed to Complete in the last 24 hours.</span>'
+
         email_body += f'<br><br><table>'
         email_body += f'''
                  <tr>

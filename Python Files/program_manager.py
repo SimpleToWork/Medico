@@ -26,15 +26,15 @@ def run_program(environment, function_to_run):
     elif function_to_run == 'Email Diagnostic':
         run_email_diagnostic(x, environment)
 
-    record_program_details(x, program_name="Medico", method=function_to_run)
-    record_program_performance(x, program_name="Medico", method=function_to_run)
+    # record_program_details(x, program_name="Medico", method=function_to_run)
+    # record_program_performance(x, program_name="Medico", method=function_to_run)
 
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         environment = 'development'
-        function_to_run = 'Upload Process'
+        function_to_run = 'Email Diagnostic'
     else:
         environment = sys.argv[1]
         function_to_run = sys.argv[2]
