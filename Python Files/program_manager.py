@@ -33,8 +33,8 @@ def run_program(environment, function_to_run):
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        environment = 'development'
-        function_to_run = 'Email Diagnostic'
+        environment = 'production'
+        function_to_run = 'Upload Process'
     else:
         environment = sys.argv[1]
         function_to_run = sys.argv[2]
