@@ -368,6 +368,7 @@ def process_new_files(engine, GdriveAPI, record_input_folder_id, existing_patien
             if len(val.get("ids")) > 1:
                 print_color(f'Folder Does Not Exists', color='r', output_file=main_log_file)
                 folder_id = GdriveAPI.create_folder(folder_name=key, parent_folder=record_input_folder_id)
+                print_color(f'folder_id: {folder_id}', color='g')
                 if folder_id is not None:
                     scripts = []
                     for each_id in val.get("ids"):
@@ -389,7 +390,7 @@ def process_new_files(engine, GdriveAPI, record_input_folder_id, existing_patien
 
                     run_sql_scripts(engine=engine, scripts=scripts)
                 else:
-                    return
+                    pass
             else:
                 print_color(f'File is Single File will not move', color='r', output_file=main_log_file)
                 file_id = val.get("ids")[0]

@@ -168,7 +168,10 @@ def process_doc_file(x, GdriveAPI, GsheetAPI, file_id, file_name, id_number):
 
     print_color(data_dict, color='r')
     df = pd.DataFrame.from_dict(data_dict, orient='columns')
-    if is_date(data_dict["date_of_birth"][0]):
+    if data_dict["date_of_birth"] is None:
+        df['date_of_birth'] = None
+
+    elif is_date(data_dict["date_of_birth"][0]):
         df['date_of_birth'] = pd.to_datetime(df['date_of_birth'])
         df['date_of_birth'] = df['date_of_birth'].apply(lambda x: x.strftime("%Y-%m-%d"))
 
@@ -516,10 +519,10 @@ def run_email_process(x, environment):
         error_message = f"{type(error).__name__}, {error}"
 
         email_body = \
-        f'''Hello,    
-          <br><br>An Error Occurred on The Email Process. 
+        f'''Hello,
+          <br><br>An Error Occurred on The Email Process.
           <br>See Error Below
-          <br><span style="color:Red;font-weight:Bold; ">{str(error_message)}</span> 
+          <br><span style="color:Red;font-weight:Bold; ">{str(error_message)}</span>
 
           <br><br>Thank you,
           <br><br>This is an automatically generated email.
