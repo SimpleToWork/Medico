@@ -149,8 +149,6 @@ def process_records(x, records_to_recruit):
     print_color(child_folders, color='b')
 
     response_folder_id = None
-
-
     for each_folder in child_folders:
         if each_folder.get("name") == 'RECORD-INPUT':
             response_folder_id = each_folder.get("id")
