@@ -368,25 +368,28 @@ def process_new_files(engine, GdriveAPI, record_input_folder_id, existing_patien
             if len(val.get("ids")) > 1:
                 print_color(f'Folder Does Not Exists', color='r', output_file=main_log_file)
                 folder_id = GdriveAPI.create_folder(folder_name=key, parent_folder=record_input_folder_id)
+                if folder_id is not None:
+                    scripts = []
+                    for each_id in val.get("ids"):
+                        file_df = merge_process_df[(merge_process_df['Folder_ID'] == each_id)]
+                        if file_df.shape[0] >0:
+                            scripts.append(f'Delete from merge_process where Folder_ID = "{each_id}"')
+                        GdriveAPI.move_file(file_id=each_id, new_folder_id=folder_id)
 
-                scripts = []
-                for each_id in val.get("ids"):
-                    file_df = merge_process_df[(merge_process_df['Folder_ID'] == each_id)]
-                    if file_df.shape[0] >0:
-                        scripts.append(f'Delete from merge_process where Folder_ID = "{each_id}"')
-                    GdriveAPI.move_file(file_id=each_id, new_folder_id=folder_id)
+                    scripts.append(f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
+                            values("{folder_id}", "{key}", True)''')
 
-                scripts.append(f'''insert into folders(`Folder_ID`, `Folder_Name`, `New_Files_Imported`)
-                        values("{folder_id}", "{key}", True)''')
-                if "zip" in val.get("extensions"):
-                    has_zip = True
+                    if "zip" in val.get("extensions"):
+                        has_zip = True
+                    else:
+                        has_zip = False
+                    scripts.append(f'''insert into merge_process
+                          values(null, curdate(), "{key}", "{folder_id}", "https://drive.google.com/folder/d/{folder_id}", False, {has_zip}, False, False, False, False, False)
+                                                                               ''')
+
+                    run_sql_scripts(engine=engine, scripts=scripts)
                 else:
-                    has_zip = False
-                scripts.append(f'''insert into merge_process
-                      values(null, curdate(), "{key}", "{folder_id}", "https://drive.google.com/folder/d/{folder_id}", False, {has_zip}, False, False, False, False, False)
-                                                                           ''')
-
-                run_sql_scripts(engine=engine, scripts=scripts)
+                    return
             else:
                 print_color(f'File is Single File will not move', color='r', output_file=main_log_file)
                 file_id = val.get("ids")[0]
@@ -1361,6 +1364,8 @@ def process_open_folders(x, engine, GdriveAPI, GsheetAPI, record_input_folder_id
         Change_Sql_Column_Types(engine=engine, Project_name=x.project_name, Table_Name=table_name, DataTypes=sql_types, DataFrame=performance_df)
         performance_df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
                               chunksize=1000, dtype=sql_types)
+
+        print_color(f'Merge Process Complete', color='g')
 
 
         # break
