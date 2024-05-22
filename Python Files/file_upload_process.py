@@ -154,7 +154,7 @@ def process_records(x, records_to_recruit):
             response_folder_id = each_folder.get("id")
             break
 
-    print_color(response_folder_id, color='y')
+    print_color(f'response_folder_id: {response_folder_id}', color='y')
     sub_response_folders = GdriveAPI.get_child_folders(folder_id=response_folder_id)
     folder_dict = {x.get('name'): x.get("id") for x in sub_response_folders}
     folder_names = [x.get('name') for x in sub_response_folders]
@@ -169,18 +169,18 @@ def process_records(x, records_to_recruit):
     for i in range(records_to_recruit.shape[0]):
         now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
 
-        try:
-            row_count, name_of_new_folder, date_processed = process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, folder_dict, date,
-                                  response_folder_id, row_count, GsheetAPI, GsheetAPI_1)
+        # try:
+        row_count, name_of_new_folder, date_processed = process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, folder_dict, date,
+                              response_folder_id, row_count, GsheetAPI, GsheetAPI_1)
 
-            if date_processed is True:
-                executed = True
-            else:
-                executed = False
-        except Exception as e:
-            print_color(f'An Error Occurred', color='r')
-            print_color(e, color='r')
+        if date_processed is True:
+            executed = True
+        else:
             executed = False
+        # except Exception as e:
+        #     print_color(f'An Error Occurred', color='r')
+        #     print_color(e, color='r')
+        #     executed = False
 
         print_color(name_of_new_folder, date_processed, color='b')
         performance_list = [None, "Upload Process", date_now, now, name_of_new_folder, executed]
@@ -201,24 +201,24 @@ def process_records(x, records_to_recruit):
 
 def run_file_upload_process(x, environment):
     GmailAPi = GoogleGmailAPI(credentials_file=x.gmail_credentials_file, token_file=x.gmail_token_file, scopes=x.gmail_scopes)
-    try:
-        records_to_recruit = get_form_data(x)
-        process_records(x, records_to_recruit)
+    # try:
+    records_to_recruit = get_form_data(x)
+    process_records(x, records_to_recruit)
 
-    except Exception as error:
-        now = datetime.datetime.now().strftime("%Y-%m-%d")
-        error_message = f"{type(error).__name__}, {error}"
-
-        email_body = \
-        f'''Hello,
-        <br><br>An Error Occurred on The Upload Process.
-        <br>See Error Below
-        <br><span style="color:Red;font-weight:Bold; ">{str(error_message)}</span>
-
-        <br><br>Thank you,
-        <br><br>This is an automatically generated email.
-        '''
-        print_color(error_message, color='y')  # An error occurred: NameError
-        GmailAPi.send_email(email_to=", ".join(x.notification_email), email_sender=x.email_sender,
-                            email_subject=f'Upload Process Error {now}', email_cc=None, email_bcc=None,
-                            email_body=email_body)
+    # except Exception as error:
+    #     now = datetime.datetime.now().strftime("%Y-%m-%d")
+    #     error_message = f"{type(error).__name__}, {error}"
+    #
+    #     email_body = \
+    #     f'''Hello,
+    #     <br><br>An Error Occurred on The Upload Process.
+    #     <br>See Error Below
+    #     <br><span style="color:Red;font-weight:Bold; ">{str(error_message)}</span>
+    #
+    #     <br><br>Thank you,
+    #     <br><br>This is an automatically generated email.
+    #     '''
+    #     print_color(error_message, color='y')  # An error occurred: NameError
+    #     GmailAPi.send_email(email_to=", ".join(x.notification_email), email_sender=x.email_sender,
+    #                         email_subject=f'Upload Process Error {now}', email_cc=None, email_bcc=None,
+    #                         email_body=email_body)
