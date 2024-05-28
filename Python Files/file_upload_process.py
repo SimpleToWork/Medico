@@ -169,31 +169,32 @@ def process_records(x, records_to_recruit):
     for i in range(records_to_recruit.shape[0]):
         now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
 
-        # try:
-        row_count, name_of_new_folder, date_processed = process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, folder_dict, date,
-                              response_folder_id, row_count, GsheetAPI, GsheetAPI_1)
+        try:
+            row_count, name_of_new_folder, date_processed = process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, folder_dict, date,
+                                  response_folder_id, row_count, GsheetAPI, GsheetAPI_1)
 
-        if date_processed is True:
-            executed = True
-        else:
+            if date_processed is True:
+                executed = True
+            else:
+                executed = False
+        except Exception as e:
+            print_color(f'An Error Occurred', color='r')
+            print_color(e, color='r')
             executed = False
-        # except Exception as e:
-        #     print_color(f'An Error Occurred', color='r')
-        #     print_color(e, color='r')
-        #     executed = False
 
-        print_color(name_of_new_folder, date_processed, color='b')
-        performance_list = [None, "Upload Process", date_now, now, name_of_new_folder, executed]
-        performance_df = pd.DataFrame([performance_list])
-        performance_df.columns = ['id', 'module_name', 'date', 'datetime', 'Patient_Folder__Name', 'module_complete']
-        print_color(performance_df, color='g')
-        sql_types = Get_SQL_Types(performance_df).data_types
-        Change_Sql_Column_Types(engine=engine, Project_name=x.project_name, Table_Name=table_name, DataTypes=sql_types,
-                                DataFrame=performance_df)
-        performance_df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
-                              chunksize=1000, dtype=sql_types)
+        if executed is True:
+            print_color(name_of_new_folder, date_processed, color='b')
+            performance_list = [None, "Upload Process", date_now, now, name_of_new_folder, executed]
+            performance_df = pd.DataFrame([performance_list])
+            performance_df.columns = ['id', 'module_name', 'date', 'datetime', 'Patient_Folder__Name', 'module_complete']
+            print_color(performance_df, color='g')
+            sql_types = Get_SQL_Types(performance_df).data_types
+            Change_Sql_Column_Types(engine=engine, Project_name=x.project_name, Table_Name=table_name, DataTypes=sql_types,
+                                    DataFrame=performance_df)
+            performance_df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
+                                  chunksize=1000, dtype=sql_types)
 
-        print_color(f'Data imported to {table_name}', color='g')
+            print_color(f'Data imported to {table_name}', color='g')
 
         # break
 
