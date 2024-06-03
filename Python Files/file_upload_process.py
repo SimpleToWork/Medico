@@ -110,20 +110,40 @@ def process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, fo
             GdriveAPI.move_file(file_id=each_id, new_folder_id=new_folder_id)
 
             print_color(data_to_upload, color='b')
+        file_move_status = []
+        for each_id in unique_file_ids:
+            data = GdriveAPI.get_file_data(file_id=each_id)
+            parent_folder_id = data.get("parents")[0]
+            if new_folder_id == parent_folder_id:
+                file_move_status.append(True)
+            else:
+                file_move_status.append(False)
 
-        print_color(f'File count {len(unique_file_ids)}  Range {row_count} - {row_count + counter}', color='y')
-        GsheetAPI.insert_row_to_sheet(sheetname="Detailed Evaluation Data", gid=0,
-                                      insert_range=['B', row_count, 'J', row_count + counter],
-                                      data=data_to_upload
-                                      )
-        # break
-        row_count += counter
+        all_processed = False
+        if False in file_move_status:
+            print_color(f'File Has Not Moved from Inputs', color='r')
+            all_processed = False
+        else:
+            all_processed = True
 
-        processed_responses = [[id, 'TRUE']]
-        GsheetAPI_1.insert_row_to_sheet(sheetname="Processed Responses", gid=865982653,
-                                        insert_range=['A', 1, 'B', 1],
-                                        data=processed_responses
-                                        )
+        # print_color(data.get("owners")[0].get("emailAddress"), data.get("parents")[0], color='r',
+        #             output_file=main_log_file)
+
+        if all_processed is True:
+            print_color(f'File count {len(unique_file_ids)}  Range {row_count} - {row_count + counter}', color='y')
+
+            GsheetAPI.insert_row_to_sheet(sheetname="Detailed Evaluation Data", gid=0,
+                                          insert_range=['B', row_count, 'J', row_count + counter],
+                                          data=data_to_upload
+                                          )
+
+            row_count += counter
+
+            processed_responses = [[id, 'TRUE']]
+            GsheetAPI_1.insert_row_to_sheet(sheetname="Processed Responses", gid=865982653,
+                                            insert_range=['A', 1, 'B', 1],
+                                            data=processed_responses
+                                            )
 
     return row_count, name_of_new_folder, date_processed
 
