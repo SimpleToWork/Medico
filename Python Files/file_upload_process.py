@@ -88,7 +88,7 @@ def process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, fo
         else:
             new_folder_id = folder_dict.get(name_of_new_folder)
 
-        print_color(name_of_new_folder, new_folder_id, color='b')
+        print_color(f'name_of_new_folder: {name_of_new_folder}, {new_folder_id}', color='b')
         print_color(files_to_upload, color='y')
 
         unique_files = files_to_upload.split(",")
