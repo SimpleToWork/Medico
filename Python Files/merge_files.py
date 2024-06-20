@@ -471,7 +471,6 @@ def map_files_and_folders_to_google_drive(engine, GsheetAPI):
 
 
 
-
 def move_files_to_parent_folder(root_folder, source_folder, folder, zip_exclusion_list, extension_list,
         extension_exclusion_list, prefix_exclusion_list):
     print_color(root_folder, color='r')
@@ -555,7 +554,6 @@ def move_files_to_parent_folder(root_folder, source_folder, folder, zip_exclusio
     return zip_exclusion_list
 
 
-
 def unpack_child_folders(GdriveAPI, parent_folder, processed_folder_id, child_folders, extension_exclusion_list, prefix_exclusion_list, patient_log_file):
     excluded_folders = []
     for each_folder in child_folders:
@@ -588,6 +586,7 @@ def unpack_child_folders(GdriveAPI, parent_folder, processed_folder_id, child_fo
                 print_color(f'Could Not Delete Folder. WIll Move instead', color='r', output_file=patient_log_file)
                 GdriveAPI.move_file( file_id=child_folder_id, new_folder_id=processed_folder_id)
     return excluded_folders
+
 
 def process_zip_files(GdriveAPI, file_export, folder_id, processed_folder_id, file_id, file_name, extended_file_name, viewable_files, folder_files,
                       extension_list, extension_exclusion_list, prefix_exclusion_list, patient_log_file
@@ -715,6 +714,7 @@ def sort_files(folder_files):
 def sort_image_files(image_files):
     sorted_files = sorted(image_files, key=lambda x: (int(x['size'])), reverse=True)
     return sorted_files
+
 
 def bytes_to_gb(bytes_value):
     gb_value = bytes_value / (1024 ** 3)
@@ -1011,7 +1011,8 @@ def merge_to_pdf(GdriveAPI, sorted_files, excluded_files, folder_exclusions, exp
 
         return final_combined_pdf_file, final_upload_file_name
 
-def  ocr_conversion(x, GdriveAPI, upload_folder_id, combined_pdf_file, upload_file_name, patient_log_file):
+
+def ocr_conversion(x, GdriveAPI, upload_folder_id, combined_pdf_file, upload_file_name, patient_log_file):
     ocr_directory = x.ocr_directory
     ocr_settings = x.ocr_setting
 

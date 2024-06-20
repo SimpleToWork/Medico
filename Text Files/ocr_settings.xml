@@ -16,7 +16,7 @@
             <ResellerLicence></ResellerLicence>
             <MaxWorkerThreads>10</MaxWorkerThreads>
             <PageSecondsTimout>-1</PageSecondsTimout>
-            <AutoRotation>true</AutoRotation>
+            <AutoRotation>False</AutoRotation>
             <PageTextExport>
                 <CreateFolders>false</CreateFolders>
                 <Path></Path>
@@ -24,9 +24,9 @@
             </PageTextExport>
         </OCR>
         <Rendering>
-            <Mode>Automatic</Mode>
-            <Resolution>300</Resolution>
-            <BWFlag>false</BWFlag>
+            <Mode>On</Mode>
+            <Resolution>200</Resolution>
+            <BWFlag>true</BWFlag>
         </Rendering>
     </ApplicationSettings>
     <PDFDocumentSettings>
