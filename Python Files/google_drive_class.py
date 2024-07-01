@@ -119,7 +119,11 @@ class GoogleDriveAPI():
         return results
 
     def get_file_data(self, file_id):
-        data = self.service.files().get(fileId=file_id, fields='*').execute()
+        try:
+            data = self.service.files().get(fileId=file_id, fields='*').execute()
+        except Exception as e:
+            print_color(e, color='r')
+            data = None
         return data
 
     def download_file(self, file_id, file_name):
@@ -164,6 +168,7 @@ class GoogleDriveAPI():
 
     def move_file(self, file_id, new_folder_id):
         print_color(file_id, color='y')
+
         file = self.service.files().get(fileId=file_id, fields='parents').execute()
         previous_parents = ",".join(file.get('parents'))
 

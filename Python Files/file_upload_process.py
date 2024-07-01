@@ -11,9 +11,35 @@ from dateutil.parser import parse
 def get_form_data(x):
     GsheetAPI = GoogleSheetsAPI(credentials_file=x.gsheet_credentials_file, token_file=x.gsheet_token_file, scopes=x.gsheet_scopes,
                     sheet_id=x.google_sheet_form_responses)
+    GdriveAPI = GoogleDriveAPI(credentials_file=x.drive_credentials_file, token_file=x.drive_token_file,
+                               scopes=x.drive_scopes)
 
     df = GsheetAPI.get_data_from_sheet(sheetname='Form responses 1', range_name='A:K')
     print_color(df, color='g')
+    files = GdriveAPI.get_files(folder_id=x.gmail_form_upload_folder)
+
+    df['file_not_moved'] = False
+    for each_file in files:
+        print_color(each_file, color='r')
+        file_id = each_file.get("id")
+
+        df['file_not_moved'] = df.apply(lambda row: True if file_id in row['please_upload_up_to_10_files_here'] else row['file_not_moved'] , axis=1)
+
+    print_color(df[(df['file_not_moved'] == True)], color='y')
+    ids_to_delete = df[(df['file_not_moved'] == True)]['id'].unique().tolist()
+    # ids_to_delete = [int(x) for x in ids_to_delete]
+    print_color(ids_to_delete, color='g')
+
+    processed_responses_df = GsheetAPI.get_data_from_sheet(sheetname='Processed Responses', range_name='A:B')
+    processed_responses_df['file_not_moved'] = processed_responses_df['id'].apply(lambda x: True if x in ids_to_delete else False)
+    processed_responses_df = processed_responses_df[processed_responses_df['file_not_moved'] == False]
+    processed_responses_df = processed_responses_df.drop(['file_not_moved'], axis=1)
+    processed_responses_df = processed_responses_df.drop_duplicates(subset=['id', 'processed'])
+    print_color(processed_responses_df, color='y')
+
+    GsheetAPI.write_data_to_sheet(data=processed_responses_df,sheetname='Processed Responses', row_number=1, include_headers=True, clear_data=True)
+
+    df = GsheetAPI.get_data_from_sheet(sheetname='Form responses 1', range_name='A:K')
 
     records_to_recruit = df[(df['processed'] != "TRUE")]
     print_color(records_to_recruit, color='y')
@@ -25,6 +51,7 @@ def get_form_data(x):
     print_color(records_to_recruit, color='y')
 
     return records_to_recruit
+
 
 
 def process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, folder_dict, date, response_folder_id, row_count, GsheetAPI, GsheetAPI_1):
@@ -107,18 +134,23 @@ def process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, fo
             data_to_upload.append([timestamp, id, each_id, file_name, lawyer_name, email_address, patient_first_name,
                                    patient_last_name, patient_dob, date_of_exam, folder_name])
             counter += 1
-            GdriveAPI.move_file(file_id=each_id, new_folder_id=new_folder_id)
+            # try:
+            data = GdriveAPI.get_file_data(file_id=each_id)
+            if data is not None:
+                GdriveAPI.move_file(file_id=each_id, new_folder_id=new_folder_id)
 
             print_color(data_to_upload, color='b')
         file_move_status = []
         for each_id in unique_file_ids:
             data = GdriveAPI.get_file_data(file_id=each_id)
-            parent_folder_id = data.get("parents")[0]
-            if new_folder_id == parent_folder_id:
-                file_move_status.append(True)
+            if data is not None:
+                parent_folder_id = data.get("parents")[0]
+                if new_folder_id == parent_folder_id:
+                    file_move_status.append(True)
+                else:
+                    file_move_status.append(False)
             else:
                 file_move_status.append(False)
-
         all_processed = False
         if False in file_move_status:
             print_color(f'File Has Not Moved from Inputs', color='r')
@@ -180,8 +212,6 @@ def process_records(x, records_to_recruit):
     folder_names = [x.get('name') for x in sub_response_folders]
 
     print_color(folder_dict, color='g')
-
-
     row_count = GsheetAPI.get_row_count(sheetname="Detailed Evaluation Data")
     date = datetime.datetime.now().strftime('%Y-%m-%d')
     date_now = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -189,34 +219,34 @@ def process_records(x, records_to_recruit):
     for i in range(records_to_recruit.shape[0]):
         now = datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")
 
-        try:
-            row_count, name_of_new_folder, date_processed = process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, folder_dict, date,
-                                  response_folder_id, row_count, GsheetAPI, GsheetAPI_1)
+        # try:
+        row_count, name_of_new_folder, date_processed = process_individual_record(records_to_recruit, i, folder_names, GdriveAPI, folder_dict, date,
+                              response_folder_id, row_count, GsheetAPI, GsheetAPI_1)
 
-            if date_processed is True:
-                executed = True
-            else:
-                executed = False
-        except Exception as e:
-            print_color(f'An Error Occurred', color='r')
-            print_color(e, color='r')
+        if date_processed is True:
+            executed = True
+        else:
             executed = False
-
-        if executed is True:
-            print_color(name_of_new_folder, date_processed, color='b')
-            performance_list = [None, "Upload Process", date_now, now, name_of_new_folder, executed]
-            performance_df = pd.DataFrame([performance_list])
-            performance_df.columns = ['id', 'module_name', 'date', 'datetime', 'Patient_Folder__Name', 'module_complete']
-            print_color(performance_df, color='g')
-            sql_types = Get_SQL_Types(performance_df).data_types
-            Change_Sql_Column_Types(engine=engine, Project_name=x.project_name, Table_Name=table_name, DataTypes=sql_types,
-                                    DataFrame=performance_df)
-            performance_df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
-                                  chunksize=1000, dtype=sql_types)
-
-            print_color(f'Data imported to {table_name}', color='g')
-
-        # break
+        # except Exception as e:
+        #     print_color(f'An Error Occurred', color='r')
+        #     print_color(e, color='r')
+        #     executed = False
+        #
+        # if executed is True:
+        #     print_color(name_of_new_folder, date_processed, color='b')
+        #     performance_list = [None, "Upload Process", date_now, now, name_of_new_folder, executed]
+        #     performance_df = pd.DataFrame([performance_list])
+        #     performance_df.columns = ['id', 'module_name', 'date', 'datetime', 'Patient_Folder__Name', 'module_complete']
+        #     print_color(performance_df, color='g')
+        #     sql_types = Get_SQL_Types(performance_df).data_types
+        #     Change_Sql_Column_Types(engine=engine, Project_name=x.project_name, Table_Name=table_name, DataTypes=sql_types,
+        #                             DataFrame=performance_df)
+        #     performance_df.to_sql(name=table_name, con=engine, if_exists='append', index=False, schema=x.project_name,
+        #                           chunksize=1000, dtype=sql_types)
+        #
+        #     print_color(f'Data imported to {table_name}', color='g')
+        #
+        # # break
 
 
 

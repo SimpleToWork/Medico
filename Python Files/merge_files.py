@@ -266,6 +266,8 @@ def import_new_folders(engine, database_name, existing_patient_folders, main_log
 
     print_color(data_df, color='r', output_file=main_log_file)
     print_color(existing_patient_folders, color='g', output_file=main_log_file)
+    pprint.pprint(existing_patient_folders)
+
 
     df = pd.DataFrame.from_dict(existing_patient_folders, orient='columns').transpose()
     df['Folder_Name'] = df.index

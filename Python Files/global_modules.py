@@ -70,6 +70,7 @@ class ProgramCredentials:
         self.google_sheet_merge_process = f['google_sheet_merge_process']
 
         self.gmail_upload_folder_id = f['gmail_upload_folder_id']
+        self.gmail_form_upload_folder = f['gmail_form_upload_folder']
 
         self.auto_publish_sheet_name = f['auto_publish_sheet_name']
         self.published_folder = f['published_folder']
